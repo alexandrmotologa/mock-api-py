@@ -99,22 +99,10 @@ mock-api-py db.json
 
 Once started, your terminal displays an aesthetic dashboard showing your active endpoints:
 
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                     ⚡ mock-api v0.1.2 ⚡                         ┃
-┃           Modern Instant Mock CRUD Server for Developers         ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
- 🚀 Server running at:      http://127.0.0.1:8000
- 💻 Web Dashboard Studio:    http://127.0.0.1:8000/_admin
- 📖 Interactive API Docs:     http://127.0.0.1:8000/docs
- 📘 TypeScript Definitions:   http://127.0.0.1:8000/_types
- 📤 File Upload Endpoint:     http://127.0.0.1:8000/upload
- ⏱️  Simulated Delay: 300ms | 💾 Auto-save: ON
- 📦 Detected Resources:
-   • GET /posts          [2 items]
-   • GET /users          [1 item]
-   • GET /profile        [1 object]
-```
+<p align="center">
+  <img src="docs/images/terminal_banner.png" alt="mock-api Terminal Dashboard" width="750" />
+</p>
+
 
 Now open your browser:
 - **Web Studio Dashboard**: [http://127.0.0.1:8000/_admin](http://127.0.0.1:8000/_admin)
@@ -197,11 +185,19 @@ Features:
 - **🔄 Reset DB Button**: Revert the database back to its initial boot snapshot instantly.
 - Direct links to Swagger OpenAPI documentation.
 
+<p align="center">
+  <img src="docs/images/web_dashboard.png" alt="mock-api Web Studio Dashboard" width="750" />
+</p>
+
 ---
 
 ## 📘 TypeScript Types Generator (`/_types`)
 
-Frontend developers can instantly generate strict TypeScript models matching their mock database:
+Frontend developers can instantly generate strict TypeScript models matching their mock database directly from the CLI or within the Web Studio modal:
+
+<p align="center">
+  <img src="docs/images/typescript_modal.png" alt="TypeScript Definitions Studio Modal" width="750" />
+</p>
 
 ```bash
 # Fetch directly from CLI or build scripts
@@ -355,6 +351,12 @@ Supported built-in schemas: `users`, `products`, `posts`, `comments`, `todos`, `
 ---
 
 ## 📡 REST API & Query Reference
+
+Every route is automatically documented with interactive OpenAPI Swagger documentation at `/docs`:
+
+<p align="center">
+  <img src="docs/images/swagger_docs.png" alt="Interactive Swagger OpenAPI Docs" width="750" />
+</p>
 
 ### Standard CRUD Endpoints
 - `GET    /products` - List products with query filtering
