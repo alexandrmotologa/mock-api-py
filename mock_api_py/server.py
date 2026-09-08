@@ -66,7 +66,8 @@ def create_app(
 
     app = FastAPI(
         title="mock-api-py",
-        version="0.1.0",
+        version="0.1.1",
+
         description="Instant Modern Mock REST API Engine built on FastAPI",
         docs_url="/docs",
         redoc_url="/redoc",
