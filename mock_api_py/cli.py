@@ -44,6 +44,8 @@ def print_banner(
     error_rate: float = 0.0,
     save: bool = False,
     read_only: bool = False,
+    watch: bool = False,
+    static_dir: Optional[str] = None,
 ) -> None:
     """Renders the aesthetic Rich startup banner and resource overview."""
     banner_text = Text()
@@ -68,12 +70,16 @@ def print_banner(
         status_parts.append(f"⏱️  Simulated Delay: [bold yellow]{delay}[/bold yellow]")
     if error_rate > 0:
         status_parts.append(f"🎲 Chaos Error Rate: [bold red]{int(error_rate * 100)}%[/bold red]")
+    if watch:
+        status_parts.append("👀 Watch: [bold green]ON[/bold green]")
     if read_only:
         status_parts.append("🔒 Mode: [bold red]Read-Only[/bold red]")
     else:
         status_parts.append(f"💾 Auto-save: [bold green]{'ON' if save else 'OFF (In-Memory)'}[/bold green]")
 
     console.print(f" {' | '.join(status_parts)}")
+    if static_dir:
+        console.print(f" 📁 [bold]Static files:[/bold] [underline cyan]{base_url}/static[/underline cyan] [dim]({static_dir})[/dim]")
     console.print(" 📦 [bold]Detected Resources:[/bold]")
 
     collections = store.get_collections()
@@ -109,6 +115,12 @@ def run_server(
     ),
     read_only: bool = typer.Option(
         False, "--read-only", help="Block mutations (POST/PUT/PATCH/DELETE)."
+    ),
+    watch: bool = typer.Option(
+        False, "--watch", "-w", help="Watch JSON file and auto-reload in-memory data on external change."
+    ),
+    static: Optional[str] = typer.Option(
+        None, "--static", help="Directory path to serve static files from at /static."
     ),
 ) -> None:
     """Starts the instant modern mock REST API server from a JSON database file."""
@@ -153,6 +165,8 @@ def run_server(
         delay=delay,
         error_rate=error_rate,
         enable_logging=True,
+        watch=watch,
+        static_dir=static,
     )
 
     print_banner(
@@ -163,6 +177,8 @@ def run_server(
         error_rate=error_rate,
         save=save,
         read_only=read_only,
+        watch=watch,
+        static_dir=static,
     )
 
     uvicorn.run(

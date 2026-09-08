@@ -1,5 +1,6 @@
 # ⚡ mock-api-py (fastmock)
 
+[![Tests](https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml/badge.svg)](https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B%20%7C%203.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -20,13 +21,16 @@ If you loved `json-server`, you will love `mock-api-py` even more:
 - 🎲 **Built-in Chaos Engine**: Simulate realistic network conditions with latency jitter (`--delay 200-800`) and random 500 error injection (`--error-rate 0.1`) to test frontend resilience.
 - 🔍 **Advanced Query Engine**:
   - Exact property filtering (`category=electronics&inStock=true`)
-  - Comparative operators (`price_gte=50`, `price_lte=100`, `price_ne=29.99`)
+  - Comparative operators (`price_gt=25`, `price_gte=50`, `price_lt=100`, `price_lte=100`, `price_ne=29.99`)
+  - Substring matching (`title_like=mouse`)
   - Full-text search across all object fields (`q=wireless`)
   - Multi-property sorting (`_sort=price&_order=desc`)
   - RFC-compliant pagination with `X-Total-Count` and `Link` headers (`_page=1&_limit=10`)
 - 🔗 **Nested Relational Routes**: Automatically detects foreign keys (e.g. `userId` in `products` -> `GET /users/1/products`).
 - 🤖 **Synthetic Data Generator**: Generate realistic datasets with Faker straight from the CLI (`mock-api generate`).
 - 💾 **Safe Atomic Persistence**: In-memory speed by default with optional atomic write-back (`--save`) or strict `--read-only` mode.
+- 👀 **Live Watch Mode**: Auto-reload in-memory data store when the JSON file changes on disk (`--watch`).
+- 📁 **Static File Serving**: Serve static assets alongside mock APIs (`--static ./public`).
 
 ---
 
@@ -116,6 +120,8 @@ mock-api [DB_FILE] [OPTIONS]
 | `--error-rate` | `-e` | `0.0` | Random 500 error injection rate between `0.0` and `1.0` (e.g. `0.1` = 10%) |
 | `--save` / `--write-back` | | `False` | Automatically persist POST/PUT/PATCH/DELETE mutations back to disk |
 | `--read-only` | | `False` | Disallow all mutating HTTP methods (POST, PUT, PATCH, DELETE) |
+| `--watch` | `-w` | `False` | Auto-reload in-memory database when the file is modified externally on disk |
+| `--static` | | `None` | Directory to mount as static file server at `/static` |
 
 ---
 

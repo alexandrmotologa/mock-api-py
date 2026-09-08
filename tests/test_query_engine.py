@@ -28,15 +28,30 @@ def test_comparative_operators(sample_data):
     ids = {item["id"] for item in res_gte.items}
     assert ids == {2, 3}
 
+    # _gt
+    res_gt = execute_query(items, {"price_gt": "89.99"})
+    assert len(res_gt.items) == 1
+    assert res_gt.items[0]["id"] == 3
+
     # _lte
     res_lte = execute_query(items, {"price_lte": "50"})
     assert len(res_lte.items) == 1
     assert res_lte.items[0]["id"] == 1
 
+    # _lt
+    res_lt = execute_query(items, {"price_lt": "89.99"})
+    assert len(res_lt.items) == 1
+    assert res_lt.items[0]["id"] == 1
+
     # _ne
     res_ne = execute_query(items, {"price_ne": "29.99"})
     assert len(res_ne.items) == 2
     assert 1 not in [item["id"] for item in res_ne.items]
+
+    # _like
+    res_like = execute_query(items, {"title_like": "board"})
+    assert len(res_like.items) == 1
+    assert res_like.items[0]["title"] == "Mechanical Keyboard"
 
 
 def test_full_text_search(sample_data):

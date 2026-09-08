@@ -179,3 +179,34 @@ async def test_chaos_middleware(sample_data):
         # Docs endpoint should still be accessible even under 100% chaos
         res_docs = await chaos_client.get("/docs")
         assert res_docs.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_route_operators(client):
+    # Test _gt, _lt, _like via API
+    res_gt = await client.get("/products?price_gt=89.99")
+    assert res_gt.status_code == 200
+    assert len(res_gt.json()) == 1
+
+    res_lt = await client.get("/products?price_lt=50")
+    assert res_lt.status_code == 200
+    assert len(res_lt.json()) == 1
+
+    res_like = await client.get("/products?title_like=mouse")
+    assert res_like.status_code == 200
+    assert len(res_like.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_static_files(tmp_path, sample_data):
+    static_folder = tmp_path / "public"
+    static_folder.mkdir()
+    (static_folder / "hello.txt").write_text("Mock API Static Content", encoding="utf-8")
+
+    store = DataStore(initial_data=sample_data)
+    app = create_app(store=store, static_dir=str(static_folder), enable_logging=False)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as s_client:
+        res = await s_client.get("/static/hello.txt")
+        assert res.status_code == 200
+        assert res.text == "Mock API Static Content"

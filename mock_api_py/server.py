@@ -1,10 +1,11 @@
-"""FastAPI server factory with CORS, dynamic routes, and middleware pipeline."""
-
-from __future__ import annotations
-
+from contextlib import asynccontextmanager
+import asyncio
+from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
+from rich.console import Console
 
 from mock_api_py.middleware import (
     ChaosErrorMiddleware,
@@ -14,20 +15,52 @@ from mock_api_py.middleware import (
 from mock_api_py.router import create_mock_router
 from mock_api_py.store import DataStore
 
+console = Console()
+
 
 def create_app(
     store: DataStore,
     delay: Optional[str] = None,
     error_rate: float = 0.0,
     enable_logging: bool = True,
+    watch: bool = False,
+    static_dir: Optional[str] = None,
 ) -> FastAPI:
     """Creates and configures a FastAPI instance with all dynamic routes and middlewares."""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        watch_task = None
+        if watch and store.file_path:
+            async def _watch_loop():
+                while True:
+                    try:
+                        await asyncio.sleep(0.5)
+                        if store.check_and_reload():
+                            console.print(
+                                f"[dim yellow][WATCH][/dim yellow] [yellow]External file modification detected. "
+                                f"Reloaded '{store.file_path.name}'.[/yellow]"
+                            )
+                    except asyncio.CancelledError:
+                        break
+                    except Exception:
+                        pass
+
+            watch_task = asyncio.create_task(_watch_loop())
+
+        try:
+            yield
+        finally:
+            if watch_task:
+                watch_task.cancel()
+
     app = FastAPI(
         title="mock-api-py",
         version="0.1.0",
         description="Instant Modern Mock REST API Engine built on FastAPI",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # 1. Permissive CORS Middleware
@@ -54,7 +87,13 @@ def create_app(
     router = create_mock_router(store)
     app.include_router(router)
 
-    # 4. Root Endpoint with System Overview
+    # 4. Static Files Mount (optional)
+    if static_dir:
+        static_path = Path(static_dir)
+        if static_path.exists():
+            app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+    # 5. Root Endpoint with System Overview
     @app.get("/", tags=["System"], summary="API Root Overview")
     async def root_overview():
         return {

@@ -106,3 +106,22 @@ def test_atomic_persistence(tmp_path):
         saved = json.load(f)
     assert len(saved["items"]) == 2
     assert saved["items"][1]["name"] == "Second"
+
+
+def test_check_and_reload(tmp_path):
+    import time
+    db_file = tmp_path / "reload_db.json"
+    with open(db_file, "w", encoding="utf-8") as f:
+        json.dump({"items": [{"id": 1, "name": "V1"}]}, f)
+
+    store = DataStore(file_path=db_file)
+    assert store.get_all("items")[0]["name"] == "V1"
+
+    # Modify file externally
+    time.sleep(0.05)
+    with open(db_file, "w", encoding="utf-8") as f:
+        json.dump({"items": [{"id": 1, "name": "V2"}]}, f)
+
+    reloaded = store.check_and_reload()
+    assert reloaded is True
+    assert store.get_all("items")[0]["name"] == "V2"

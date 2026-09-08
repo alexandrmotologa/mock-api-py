@@ -53,26 +53,38 @@ def _matches_full_text(obj: Any, term: str) -> bool:
 
 
 def _compare_values(val: Any, target: Any, op: str) -> bool:
-    """Compares two values under operator 'gte', 'lte', or 'ne' with automatic type coercion."""
+    """Compares two values under operator 'gte', 'gt', 'lte', 'lt', 'ne', or 'like'."""
     if val is None:
         return False
 
-    # Attempt to convert to common type for comparison
+    # Substring / like operator
+    if op == "like":
+        return str(target).lower() in str(val).lower()
+
+    # Attempt numeric/string comparison
     try:
         if isinstance(val, (int, float)) and not isinstance(val, bool):
             target_num = float(target)
             if op == "gte":
                 return val >= target_num
+            elif op == "gt":
+                return val > target_num
             elif op == "lte":
                 return val <= target_num
+            elif op == "lt":
+                return val < target_num
             elif op == "ne":
                 return val != target_num
         elif isinstance(val, str):
             target_str = str(target)
             if op == "gte":
                 return val >= target_str
+            elif op == "gt":
+                return val > target_str
             elif op == "lte":
                 return val <= target_str
+            elif op == "lt":
+                return val < target_str
             elif op == "ne":
                 return val != target_str
     except (TypeError, ValueError):
@@ -162,12 +174,32 @@ def execute_query(
                 item for item in filtered
                 if field in item and _compare_values(item[field], coerced, "lte")
             ]
+        elif raw_key.endswith("_gt"):
+            field = raw_key[:-3]
+            coerced = _coerce_value(str(raw_val))
+            filtered = [
+                item for item in filtered
+                if field in item and _compare_values(item[field], coerced, "gt")
+            ]
+        elif raw_key.endswith("_lt"):
+            field = raw_key[:-3]
+            coerced = _coerce_value(str(raw_val))
+            filtered = [
+                item for item in filtered
+                if field in item and _compare_values(item[field], coerced, "lt")
+            ]
         elif raw_key.endswith("_ne"):
             field = raw_key[:-3]
             coerced = _coerce_value(str(raw_val))
             filtered = [
                 item for item in filtered
                 if field not in item or _compare_values(item[field], coerced, "ne")
+            ]
+        elif raw_key.endswith("_like"):
+            field = raw_key[:-5]
+            filtered = [
+                item for item in filtered
+                if field in item and _compare_values(item[field], raw_val, "like")
             ]
         else:
             # Exact match

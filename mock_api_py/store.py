@@ -30,6 +30,7 @@ class DataStore:
         self.auto_save = auto_save
         self.read_only = read_only
         self.data: Dict[str, Any] = {}
+        self.last_modified: Optional[float] = None
 
         if initial_data is not None:
             self.data = copy.deepcopy(initial_data)
@@ -44,6 +45,20 @@ class DataStore:
             return
         with open(self.file_path, "r", encoding="utf-8") as f:
             self.data = json.load(f)
+        self.last_modified = os.path.getmtime(self.file_path)
+
+    def check_and_reload(self) -> bool:
+        """Checks if the file was modified externally on disk and reloads if necessary."""
+        if not self.file_path or not self.file_path.exists():
+            return False
+        try:
+            current_mtime = os.path.getmtime(self.file_path)
+            if self.last_modified is None or current_mtime > self.last_modified:
+                self.load()
+                return True
+        except OSError:
+            pass
+        return False
 
     def save(self) -> None:
         """Atomically persists in-memory data to the JSON file using a temp file."""
@@ -65,6 +80,7 @@ class DataStore:
                 json.dump(self.data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
             os.replace(temp_path, self.file_path)
+            self.last_modified = os.path.getmtime(self.file_path)
         except Exception:
             if os.path.exists(temp_path):
                 os.remove(temp_path)

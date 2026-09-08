@@ -45,11 +45,19 @@ Filter by any top-level scalar property. Types (boolean, integer, float) are coe
 GET /products?category=electronics&inStock=true
 ```
 
-### Comparative Operators
+### Comparative & Pattern Operators
 Filter numeric or string fields using suffixes:
+* `_gt`: Strictly greater than
+  ```http
+  GET /products?price_gt=50
+  ```
 * `_gte`: Greater than or equal
   ```http
   GET /products?price_gte=50
+  ```
+* `_lt`: Strictly less than
+  ```http
+  GET /products?price_lt=100
   ```
 * `_lte`: Less than or equal
   ```http
@@ -58,6 +66,10 @@ Filter numeric or string fields using suffixes:
 * `_ne`: Not equal
   ```http
   GET /products?category_ne=furniture
+  ```
+* `_like`: Substring search on specific field (case-insensitive)
+  ```http
+  GET /products?title_like=wireless
   ```
 
 ### Full-Text Search
