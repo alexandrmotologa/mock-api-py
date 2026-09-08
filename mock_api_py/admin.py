@@ -329,6 +329,90 @@ def get_admin_html() -> str:
       color: var(--text-muted);
       font-size: 0.9rem;
     }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 800px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(18, 24, 38, 0.95);
+      border: 1px solid var(--accent-green);
+      color: #34d399;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 2000;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -340,6 +424,8 @@ def get_admin_html() -> str:
       <span class="status-pill pill-green">Online</span>
     </div>
     <div class="nav-links">
+      <button class="btn" onclick="openTypeScriptModal()" title="View and copy generated TypeScript types">📘 TypeScript</button>
+      <button class="btn" onclick="resetDatabase()" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Reset database to initial boot snapshot">🔄 Reset DB</button>
       <a href="/docs" target="_blank" class="btn">📖 Swagger Docs</a>
       <a href="/" target="_blank" class="btn">📡 Root JSON</a>
     </div>
@@ -502,8 +588,80 @@ def get_admin_html() -> str:
       if (e.key === 'Enter') applyQuery();
     });
 
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.borderColor = isError ? 'var(--accent-red)' : 'var(--accent-green)';
+      toast.style.color = isError ? '#f87171' : '#34d399';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function openTypeScriptModal() {
+      try {
+        const res = await fetch('/_types');
+        const text = await res.text();
+        document.getElementById('ts-code-content').textContent = text;
+        document.getElementById('ts-modal').classList.add('active');
+      } catch (err) {
+        showToast('Failed to fetch TypeScript types: ' + err.message, true);
+      }
+    }
+
+    function closeTypeScriptModal() {
+      document.getElementById('ts-modal').classList.remove('active');
+    }
+
+    function handleModalBackdrop(e) {
+      if (e.target.id === 'ts-modal') {
+        closeTypeScriptModal();
+      }
+    }
+
+    async function copyTypeScriptCode() {
+      const code = document.getElementById('ts-code-content').textContent;
+      await navigator.clipboard.writeText(code);
+      const btn = document.getElementById('copy-ts-btn');
+      const original = btn.innerText;
+      btn.innerText = '✅ Copied!';
+      setTimeout(() => { btn.innerText = original; }, 2000);
+      showToast('TypeScript definitions copied to clipboard!');
+    }
+
+    async function resetDatabase() {
+      if (!confirm('Are you sure you want to reset the database to its initial boot state? Any changes made since server start will be reverted.')) {
+        return;
+      }
+      try {
+        const res = await fetch('/_reset', { method: 'POST' });
+        if (!res.ok) throw new Error('Reset failed');
+        showToast('Database reset to initial boot snapshot!');
+        await loadResources();
+      } catch (err) {
+        showToast('Failed to reset database: ' + err.message, true);
+      }
+    }
+
     loadResources();
   </script>
+
+  <div id="ts-modal" class="modal-overlay" onclick="handleModalBackdrop(event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📘 TypeScript Definitions (Auto-generated)</h3>
+        <button class="btn" onclick="closeTypeScriptModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="ts-code-content" style="max-height: 55vh;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="copy-ts-btn" onclick="copyTypeScriptCode()">📋 Copy Definitions</button>
+        <button class="btn" onclick="closeTypeScriptModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Action completed successfully</div>
 </body>
 </html>
 """

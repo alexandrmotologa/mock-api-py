@@ -21,3 +21,7 @@ async def test_admin_dashboard_endpoint(sample_data):
         assert "mock-api Studio" in html
         assert "Collections" in html
         assert "Singletons" in html
+        assert "TypeScript" in html
+        assert "Reset DB" in html
+        assert "ts-modal" in html
+

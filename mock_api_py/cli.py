@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import sys
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,18 @@ app = typer.Typer(
 console = Console(force_terminal=True)
 
 
+def find_available_port(host: str, start_port: int, max_attempts: int = 20) -> int:
+    """Finds the first available TCP port starting from start_port."""
+    for p in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind((host, p))
+                return p
+            except OSError:
+                continue
+    return start_port
+
+
 def print_banner(
     host: str,
     port: int,
@@ -64,9 +77,11 @@ def print_banner(
     console.print(panel)
 
     base_url = f"http://{host}:{port}"
-    console.print(f" 🚀 [bold green]Server running at:[/bold green]   [underline cyan]{base_url}[/underline cyan]")
-    console.print(f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan] [underline cyan]{base_url}/_admin[/underline cyan]")
-    console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]  [underline cyan]{base_url}/docs[/underline cyan]")
+    console.print(f" 🚀 [bold green]Server running at:[/bold green]      [underline cyan]{base_url}[/underline cyan]")
+    console.print(f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan]    [underline cyan]{base_url}/_admin[/underline cyan]")
+    console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]     [underline cyan]{base_url}/docs[/underline cyan]")
+    console.print(f" 📘 [bold blue]TypeScript Definitions:[/bold blue]   [underline cyan]{base_url}/_types[/underline cyan]")
+    console.print(f" 📤 [bold green]File Upload Endpoint:[/bold green]     [underline cyan]{base_url}/upload[/underline cyan]")
 
     status_parts = []
     if delay:
@@ -184,9 +199,17 @@ def run_server(
         routes_file=routes,
     )
 
+    # Auto-switch to available port if port is busy
+    actual_port = find_available_port(host, port)
+    if actual_port != port:
+        console.print(
+            f"⚠️  [bold yellow]Port {port} is busy.[/bold yellow] "
+            f"[bold green]Auto-switched to available port {actual_port}.[/bold green]\n"
+        )
+
     print_banner(
         host=host,
-        port=port,
+        port=actual_port,
         store=store,
         delay=delay,
         error_rate=error_rate,
@@ -201,7 +224,7 @@ def run_server(
     uvicorn.run(
         fastapi_app,
         host=host,
-        port=port,
+        port=actual_port,
         log_level="warning",
         access_log=False,
     )

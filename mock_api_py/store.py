@@ -39,6 +39,16 @@ class DataStore:
         else:
             self.data = {}
 
+        # Preserve the initial seed state for instant database resets
+        self.initial_snapshot: Dict[str, Any] = copy.deepcopy(self.data)
+
+    def reset(self) -> Dict[str, Any]:
+        """Resets the dataset back to its initial boot snapshot."""
+        self.data = copy.deepcopy(self.initial_snapshot)
+        if self.auto_save and not self.read_only and self.file_path:
+            self.save()
+        return copy.deepcopy(self.data)
+
     def load(self) -> None:
         """Loads data from the JSON file into memory."""
         if not self.file_path or not self.file_path.exists():

@@ -27,9 +27,13 @@ If you loved `json-server`, you will love `mock-api-py` even more:
   - Multi-property sorting (`_sort=price&_order=desc`)
   - RFC-compliant pagination with `X-Total-Count` and `Link` headers (`_page=1&_limit=10`)
 - 🔗 **Nested Relational Routes**: Automatically detects foreign keys (e.g. `userId` in `products` -> `GET /users/1/products`).
+- 📘 **Auto TypeScript Generator**: One-click generation of fully-typed TypeScript interfaces for all collections (`GET /_types` and Studio viewer).
+- 🔄 **Instant Database Reset**: Reset in-memory or persisted datasets back to initial boot state on-demand (`POST /_reset` or Studio button).
+- 📤 **Mock File Uploads**: Upload images/documents via `POST /upload` with immediate static hosting at `/uploads/<filename>`.
+- 🔌 **Smart Auto-Port Fallback**: Never crash due to a busy port; automatically finds and switches to the next free port.
 - 🛡️ **Mock Authentication Engine**: Real HS256 JWT tokens, `/auth/login`, `/auth/register`, `/auth/me`, and bearer token protection on mutations (`--auth`).
 - 🔀 **Custom URL Rewriter**: Map custom prefixes (`/api/*`), parameter aliases (`/articles/:id`), and query rewrites with `routes.json` (`--routes`).
-- 💻 **Embedded Web Studio Dashboard**: Sleek dark-mode glassmorphic SPA at `/_admin` with live table/JSON views, search, and query builder.
+- 💻 **Embedded Web Studio Dashboard**: Sleek dark-mode glassmorphic SPA at `/_admin` with live table/JSON views, search, query builder, TypeScript copy, and DB reset.
 - 💾 **Safe Atomic Persistence**: In-memory speed by default with optional atomic write-back (`--save`) or strict `--read-only` mode.
 - 👀 **Live Watch Mode**: Auto-reload in-memory data store when the JSON file changes on disk (`--watch`).
 - 📁 **Static File Serving**: Serve static assets alongside mock APIs (`--static ./public`).
@@ -139,7 +143,86 @@ Features:
 - Live resource explorer showing all collections and singletons with real-time record counts.
 - Instant full-text search (`q=`) and interactive sort controls.
 - Single-click toggle between responsive data table and syntax-highlighted JSON viewer.
+- **📘 TypeScript Modal**: Preview and copy auto-generated TypeScript interfaces with a single click.
+- **🔄 Reset DB Button**: Revert the database back to its initial boot snapshot instantly.
 - Direct links to Swagger OpenAPI documentation.
+
+---
+
+## 📘 TypeScript Types Generator (`/_types`)
+
+Frontend developers can instantly generate strict TypeScript models matching their mock database:
+
+```bash
+# Fetch directly from CLI or build scripts
+curl http://127.0.0.1:8000/_types > src/types/api.ts
+```
+
+Example generated output:
+```typescript
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role?: string;
+}
+
+export interface Product {
+  id: number;
+  title: string;
+  price: number;
+  category: string;
+  inStock: boolean;
+}
+
+export interface Database {
+  users: User[];
+  products: Product[];
+}
+```
+
+---
+
+## 🔄 Instant Database Reset (`/_reset`)
+
+Testing destructive flows like deleting items or wiping profiles? Reset the database to its exact server-boot state at any time:
+
+```bash
+curl -X POST http://127.0.0.1:8000/_reset
+```
+
+Or simply click the **"🔄 Reset DB"** button in the Web Studio (`/_admin`).
+
+---
+
+## 📤 Mock File Uploads (`/upload`)
+
+Simulate avatar uploads, attachments, or image pickers without setting up S3 or local storage:
+
+```bash
+curl -F "file=@avatar.png" http://127.0.0.1:8000/upload
+```
+
+Response:
+```json
+{
+  "url": "/uploads/avatar.png",
+  "filename": "avatar.png",
+  "size": 42150,
+  "contentType": "image/png"
+}
+```
+The file is immediately accessible at `http://127.0.0.1:8000/uploads/avatar.png`.
+
+---
+
+## 🔌 Smart Auto-Port Fallback
+
+Never get frustrated by `Error: [Errno 48] Address already in use`. If port 8000 is occupied by another app (or another `mock-api` instance), the engine smoothly seeks the next available port (8001, 8002, etc.) and starts right up with an alert in the console:
+
+```
+⚠️  Port 8000 is busy. Auto-switched to available port 8001.
+```
 
 ---
 

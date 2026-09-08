@@ -125,3 +125,28 @@ def test_check_and_reload(tmp_path):
     reloaded = store.check_and_reload()
     assert reloaded is True
     assert store.get_all("items")[0]["name"] == "V2"
+
+
+def test_store_reset():
+    initial = {
+        "posts": [{"id": 1, "title": "Original"}],
+        "profile": {"name": "Admin"},
+    }
+    store = DataStore(initial_data=initial)
+
+    # Mutate data
+    store.create("posts", {"title": "New Post"})
+    store.update("posts", 1, {"title": "Changed"}, partial=True)
+    store.update_singleton("profile", {"name": "Hacked"})
+
+    assert len(store.get_all("posts")) == 2
+    assert store.get_by_id("posts", 1)["title"] == "Changed"
+    assert store.get_singleton("profile")["name"] == "Hacked"
+
+    # Reset
+    store.reset()
+
+    assert len(store.get_all("posts")) == 1
+    assert store.get_by_id("posts", 1)["title"] == "Original"
+    assert store.get_singleton("profile")["name"] == "Admin"
+
