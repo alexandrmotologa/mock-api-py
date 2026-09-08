@@ -1,13 +1,22 @@
-# ⚡ mock-api-py (fastmock)
+<p align="center">
+  <img src="docs/images/logo.png" alt="mock-api-py logo" width="130" />
+</p>
 
-[![Tests](https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml/badge.svg)](https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml)
-[![Python](https://img.shields.io/badge/Python-3.11%2B%20%7C%203.12-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-> **Modern Instant Mock CRUD Engine with FastAPI, Rich CLI, and Chaos Testing.**  
-> Spin up a full RESTful backend with filtering, sorting, pagination, and interactive Swagger documentation in under a second from a simple JSON file.
+<h1 align="center">⚡ mock-api-py (fastmock)</h1>
+
+<p align="center">
+  <a href="https://pypi.org/project/mock-api-py/"><img src="https://img.shields.io/pypi/v/mock-api-py.svg?color=blue&logo=pypi&logoColor=white" alt="PyPI version" /></a>
+  <a href="https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml"><img src="https://github.com/alexandrmotologa/mock-api-py/actions/workflows/test.yml/badge.svg" alt="Tests" /></a>
+  <img src="https://img.shields.io/badge/Python-3.11%2B%20%7C%203.12-blue?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
+</p>
+
+<p align="center">
+  <strong>Modern Instant Mock CRUD Engine with FastAPI, Rich CLI, and Chaos Testing.</strong><br>
+  Spin up a full RESTful backend with filtering, sorting, pagination, and interactive Swagger documentation in under a second from a simple JSON file.
+</p>
 
 ---
 

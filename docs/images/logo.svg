@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <clipPath id="badge-clip">
+      <rect x="0" y="0" width="200" height="200" rx="42"/>
+    </clipPath>
+  </defs>
+
+  <!-- Clean Rounded Square Badge (Slate gray, identical to herdr style) -->
+  <rect x="0" y="0" width="200" height="200" rx="42" fill="#e2e8f0"/>
+
+  <!-- Grounded Mascot Silhouette (The Mockingbird) -->
+  <g clip-path="url(#badge-clip)">
+    <!-- Bird silhouette with sleek crest & body -->
+    <path d="
+      M 48 200
+      C 52 165 58 135 64 112
+      L 24 100
+      C 48 85 64 78 76 74
+      C 78 55 92 38 122 32
+      C 138 28 152 35 158 45
+      C 142 46 132 54 135 64
+      C 158 66 178 84 182 115
+      C 184 145 178 180 172 200
+      Z
+    " fill="#18181b"/>
+
+    <!-- Wing contour tone -->
+    <path d="
+      M 130 96
+      C 152 106 166 128 164 165
+      C 148 160 135 145 125 125
+      C 120 114 122 104 130 96 Z
+    " fill="#27272a"/>
+
+    <!-- Terminal Prompt Cutout (> _) as the facial expression -->
+    <g stroke="#e2e8f0" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <polyline points="88,80 100,91 88,102"/>
+      <line x1="112" y1="102" x2="128" y2="102"/>
+    </g>
+  </g>
+</svg>
