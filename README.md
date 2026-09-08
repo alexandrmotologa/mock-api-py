@@ -2,8 +2,7 @@
   <img src="docs/images/logo.png" alt="mock-api-py logo" width="130" />
 </p>
 
-
-<h1 align="center">⚡ mock-api-py (fastmock)</h1>
+<h1 align="center">mock-api-py (fastmock)</h1>
 
 <p align="center">
   <a href="https://pypi.org/project/mock-api-py/"><img src="https://img.shields.io/pypi/v/mock-api-py.svg?color=blue&logo=pypi&logoColor=white" alt="PyPI version" /></a>
@@ -14,202 +13,169 @@
 </p>
 
 <p align="center">
-  <strong>Modern Instant Mock CRUD Engine with FastAPI, Rich CLI, and Chaos Testing.</strong><br>
-  Spin up a full RESTful backend with filtering, sorting, pagination, and interactive Swagger documentation in under a second from a simple JSON file.
+  Instant mock REST API engine built with Python and FastAPI.<br>
+  Serves CRUD endpoints, sorting, filtering, pagination, and OpenAPI docs from a JSON file.
 </p>
 
----
+## Features
 
-## 🚀 Why `mock-api-py`?
+- **FastAPI and ASGI engine**: Runs on Uvicorn with asynchronous I/O.
+- **OpenAPI documentation**: Interactive Swagger UI at `/docs` and ReDoc at `/redoc`.
+- **Terminal dashboard**: Displays detected resource routes and colored HTTP request logs via Rich.
+- **Chaos testing**: Configurable latency jitter (`--delay 200-800`) and random 500 error injection (`--error-rate 0.1`).
+- **Query engine**: Supports exact filtering, comparisons (`_gt`, `_gte`, `_lt`, `_lte`, `_ne`), substring matching (`_like`), full-text search (`q=`), sorting (`_sort`, `_order`), and pagination (`_page`, `_limit`) with `X-Total-Count` and RFC `Link` headers.
+- **Relational routes**: Automatically connects foreign keys (such as `userId` in `products` mapping to `/users/1/products`).
+- **TypeScript generator**: Exports TypeScript interfaces matching your collections via `GET /_types` or through the admin interface.
+- **Database reset**: Reverts data back to its boot snapshot on demand via `POST /_reset`.
+- **File uploads**: Accepts multipart uploads at `POST /upload` and serves them from `/uploads/<filename>`.
+- **Port fallback**: Finds and binds the next open port if port 8000 is occupied.
+- **Authentication**: Provides JWT authentication endpoints (`/auth/login`, `/auth/register`, `/auth/me`) and protects mutating routes when `--auth` is enabled.
+- **Route rewrites**: Remaps URLs and query strings using a `routes.json` file (`--routes`).
+- **Web studio**: Browser dashboard at `/_admin` with data tables, JSON viewer, query builder, and database reset.
+- **Storage options**: In-memory storage by default, with optional disk persistence (`--save`) or read-only mode (`--read-only`).
+- **File watching**: Reloads in-memory data when the database file changes on disk (`--watch`).
+- **Static files**: Serves static assets from a designated folder (`--static`).
 
-If you loved `json-server`, you will love `mock-api-py` even more:
+## Quickstart
 
-- ⚡ **Lightning Fast**: Powered by ASGI and Uvicorn with async I/O.
-- 📖 **Interactive Swagger UI**: Full OpenAPI docs automatically available at `/docs` and `/redoc`.
-- 🎨 **Modern Console UX**: Styled Rich terminal output with detected resource tables and live-colored HTTP request logs.
-- 🎲 **Built-in Chaos Engine**: Simulate realistic network conditions with latency jitter (`--delay 200-800`) and random 500 error injection (`--error-rate 0.1`) to test frontend resilience.
-- 🔍 **Advanced Query Engine**:
-  - Exact property filtering (`category=electronics&inStock=true`)
-  - Comparative operators (`price_gt=25`, `price_gte=50`, `price_lt=100`, `price_lte=100`, `price_ne=29.99`)
-  - Substring matching (`title_like=mouse`)
-  - Full-text search across all object fields (`q=wireless`)
-  - Multi-property sorting (`_sort=price&_order=desc`)
-  - RFC-compliant pagination with `X-Total-Count` and `Link` headers (`_page=1&_limit=10`)
-- 🔗 **Nested Relational Routes**: Automatically detects foreign keys (e.g. `userId` in `products` -> `GET /users/1/products`).
-- 📘 **Auto TypeScript Generator**: One-click generation of fully-typed TypeScript interfaces for all collections (`GET /_types` and Studio viewer).
-- 🔄 **Instant Database Reset**: Reset in-memory or persisted datasets back to initial boot state on-demand (`POST /_reset` or Studio button).
-- 📤 **Mock File Uploads**: Upload images/documents via `POST /upload` with immediate static hosting at `/uploads/<filename>`.
-- 🔌 **Smart Auto-Port Fallback**: Never crash due to a busy port; automatically finds and switches to the next free port.
-- 🛡️ **Mock Authentication Engine**: Real HS256 JWT tokens, `/auth/login`, `/auth/register`, `/auth/me`, and bearer token protection on mutations (`--auth`).
-- 🔀 **Custom URL Rewriter**: Map custom prefixes (`/api/*`), parameter aliases (`/articles/:id`), and query rewrites with `routes.json` (`--routes`).
-- 💻 **Embedded Web Studio Dashboard**: Sleek dark-mode glassmorphic SPA at `/_admin` with live table/JSON views, search, query builder, TypeScript copy, and DB reset.
-- 💾 **Safe Atomic Persistence**: In-memory speed by default with optional atomic write-back (`--save`) or strict `--read-only` mode.
-- 👀 **Live Watch Mode**: Auto-reload in-memory data store when the JSON file changes on disk (`--watch`).
-- 📁 **Static File Serving**: Serve static assets alongside mock APIs (`--static ./public`).
+### Run with uvx (no installation needed)
 
----
+If you have [uv](https://docs.astral.sh/uv/) installed:
 
-## 📦 Quickstart (Get Started in 5 Seconds)
-
-You don't need to clone this repository, create virtual environments, or write a single line of code. Choose the method that best fits your workflow:
-
-### 🌟 Method 1: Instant Zero-Install Run (Recommended via `uvx`)
-
-If you have [`uv`](https://docs.astral.sh/uv/) installed (the modern, ultra-fast Python package runner, equivalent to `npx` in Node.js):
-
-#### Option A: Run immediately without any files
+#### Run with in-memory sample data
 ```bash
 uvx mock-api-py
 ```
-> **What happens:** The server starts instantly with an in-memory starter database (`posts`, `users`, `profile`). No files are created on your disk!
+Starts with an in-memory database (`posts`, `users`, `profile`). No file is written to disk.
 
-#### Option B: Run with a JSON database file
+#### Run with a JSON file
 ```bash
 uvx mock-api-py db.json
 ```
-> **Magic Auto-Creation:** If `db.json` does **not** exist in your folder yet, `mock-api-py` will automatically create a starter `db.json` with sample data for you on the spot, and start the server immediately!
+If `db.json` does not exist in the working directory, `mock-api-py` creates a starter file with sample data and boots the server immediately.
 
----
+### Generate synthetic data with Faker
 
-### 🤖 Method 2: Generate Realistic Synthetic Data with Faker
-
-Want custom test data (e.g. 20 users, 50 products, 30 posts)?
+To generate mock data before starting:
 
 ```bash
-# Step 1: Generate realistic dataset
+# Generate sample records
 uvx mock-api-py generate --output db.json --schema "users:20,products:50,posts:30"
 
-# Step 2: Boot the server
+# Start the server
 uvx mock-api-py db.json
 ```
 
----
+### Install with pip
 
-### 🐍 Method 3: Classic Installation via `pip`
-
-If you prefer installing tools permanently into your Python environment:
+To install into a Python environment:
 
 ```bash
 pip install mock-api-py
 ```
 
-Then run with any of the available command aliases from anywhere:
+Run using any of the available command aliases:
 ```bash
 mock-api db.json
-# or
 fastmock db.json
-# or
 mock-api-py db.json
 ```
 
----
+## Terminal output
 
-## 🖥️ What to Expect When You Run It
-
-Once started, your terminal displays an aesthetic dashboard showing your active endpoints:
+When started, the terminal lists detected endpoints and documentation URLs:
 
 <p align="center">
   <img src="docs/images/terminal_banner.png" alt="mock-api Terminal Dashboard" width="750" />
 </p>
 
+Default URLs:
+- Web Studio: [http://127.0.0.1:8000/_admin](http://127.0.0.1:8000/_admin)
+- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- Sample collection: [http://127.0.0.1:8000/posts](http://127.0.0.1:8000/posts)
 
-Now open your browser:
-- **Web Studio Dashboard**: [http://127.0.0.1:8000/_admin](http://127.0.0.1:8000/_admin)
-- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **API Endpoint**: [http://127.0.0.1:8000/posts](http://127.0.0.1:8000/posts)
+Press `Ctrl + C` to stop the server.
 
-To stop the server at any time, simply press `Ctrl + C` in your terminal.
-
----
-
-## 💡 Beginner FAQ & Troubleshooting
+## Frequently asked questions
 
 <details>
-<summary><b>Q: What is <code>uvx</code> and how do I get it?</b></summary>
+<summary><b>What is uvx and how do I install it?</b></summary>
 
-`uvx` is a tool runner bundled with [`uv`](https://github.com/astral-sh/uv), the extremely fast Python package manager from Astral. It works just like `npx` in the JavaScript ecosystem: it downloads the tool in an isolated sandbox and runs it immediately without cluttering your system.
+`uvx` runs Python CLI tools in isolated environments without installing them globally. It comes bundled with [uv](https://github.com/astral-sh/uv).
 
-To install `uv` on Windows, run in PowerShell:
+Install `uv` on Windows (PowerShell):
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-Or on macOS/Linux:
+
+Install on macOS or Linux:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-Or via pip:
+
+Or install via pip:
 ```bash
 pip install uv
 ```
 </details>
 
 <details>
-<summary><b>Q: Where is <code>db.json</code> created or looked for?</b></summary>
+<summary><b>Where is db.json located?</b></summary>
 
-The file is read from or created in the **current working directory** of your terminal (the folder path shown on the left of your terminal prompt).
+The file is read from or created in the current working directory of your terminal.
 </details>
 
 <details>
-<summary><b>Q: What if port 8000 is already in use by another app?</b></summary>
+<summary><b>What happens if port 8000 is occupied?</b></summary>
 
-No problem! `mock-api-py` includes smart port hunting. It will detect that port 8000 is busy and automatically switch to the next open port (e.g., 8001) with a friendly notification in the console.
+The server searches for the next open port (such as 8001) and binds to it automatically, logging the selected port in the console.
 </details>
 
----
-
-## 🛠️ CLI Usage & Flags
+## CLI options
 
 ```bash
 mock-api [DB_FILE] [OPTIONS]
 ```
 
-### Options
-
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--port` | `-p` | `8000` | Port to bind the server to |
 | `--host` | `-h` | `127.0.0.1` | Host address to bind |
-| `--delay` | `-d` | `None` | Artificial latency in ms. Supports fixed (`300`) or jitter range (`200-800`) |
-| `--error-rate` | `-e` | `0.0` | Random 500 error injection rate between `0.0` and `1.0` (e.g. `0.1` = 10%) |
-| `--save` / `--write-back` | | `False` | Automatically persist POST/PUT/PATCH/DELETE mutations back to disk |
-| `--read-only` | | `False` | Disallow all mutating HTTP methods (POST, PUT, PATCH, DELETE) |
-| `--watch` | `-w` | `False` | Auto-reload in-memory database when the file is modified externally on disk |
-| `--static` | | `None` | Directory to mount as static file server at `/static` |
-| `--auth` | | `False` | Enable mock authentication and require JWT Bearer tokens for mutations |
-| `--routes` | `-r` | `None` | Path to JSON custom routes rewriter file (e.g. `routes.json`) |
+| `--delay` | `-d` | `None` | Artificial latency in milliseconds (supports fixed values like `300` or ranges like `200-800`) |
+| `--error-rate` | `-e` | `0.0` | Random HTTP 500 error rate between `0.0` and `1.0` |
+| `--save` / `--write-back` | | `False` | Write POST, PUT, PATCH, and DELETE changes back to disk |
+| `--read-only` | | `False` | Reject mutating requests (POST, PUT, PATCH, DELETE) |
+| `--watch` | `-w` | `False` | Reload data when the database file is modified on disk |
+| `--static` | | `None` | Directory to mount as a static file server at `/static` |
+| `--auth` | | `False` | Enable JWT authentication and require tokens on write requests |
+| `--routes` | `-r` | `None` | Path to a custom route rewrite file |
 
----
+## Web studio
 
-## 💻 Web Studio Dashboard (`/_admin`)
+The admin interface runs at `http://127.0.0.1:8000/_admin`.
 
-Access an interactive, modern dark-mode admin interface in your browser:
-```
-http://127.0.0.1:8000/_admin
-```
 Features:
-- Live resource explorer showing all collections and singletons with real-time record counts.
-- Instant full-text search (`q=`) and interactive sort controls.
-- Single-click toggle between responsive data table and syntax-highlighted JSON viewer.
-- **📘 TypeScript Modal**: Preview and copy auto-generated TypeScript interfaces with a single click.
-- **🔄 Reset DB Button**: Revert the database back to its initial boot snapshot instantly.
-- Direct links to Swagger OpenAPI documentation.
+- Resource list showing collections, singletons, and record counts
+- Search bar (`q=`) and sorting options
+- Data table view and raw JSON view
+- TypeScript interface preview modal
+- Database reset button
+- Direct links to Swagger documentation
 
 <p align="center">
   <img src="docs/images/web_dashboard.png" alt="mock-api Web Studio Dashboard" width="750" />
 </p>
 
----
+## TypeScript generator
 
-## 📘 TypeScript Types Generator (`/_types`)
-
-Frontend developers can instantly generate strict TypeScript models matching their mock database directly from the CLI or within the Web Studio modal:
+You can generate TypeScript interfaces matching your database collections directly from the CLI or within the Web Studio modal:
 
 <p align="center">
   <img src="docs/images/typescript_modal.png" alt="TypeScript Definitions Studio Modal" width="750" />
 </p>
 
+Download the types directly via cURL:
 ```bash
-# Fetch directly from CLI or build scripts
 curl http://127.0.0.1:8000/_types > src/types/api.ts
 ```
 
@@ -236,23 +202,19 @@ export interface Database {
 }
 ```
 
----
+## Database reset
 
-## 🔄 Instant Database Reset (`/_reset`)
-
-Testing destructive flows like deleting items or wiping profiles? Reset the database to its exact server-boot state at any time:
+To restore the in-memory or persisted database back to its startup state:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/_reset
 ```
 
-Or simply click the **"🔄 Reset DB"** button in the Web Studio (`/_admin`).
+You can also trigger a reset using the "Reset DB" button in the Web Studio (`/_admin`).
 
----
+## File uploads
 
-## 📤 Mock File Uploads (`/upload`)
-
-Simulate avatar uploads, attachments, or image pickers without setting up S3 or local storage:
+Upload files using multipart form data:
 
 ```bash
 curl -F "file=@avatar.png" http://127.0.0.1:8000/upload
@@ -267,47 +229,42 @@ Response:
   "contentType": "image/png"
 }
 ```
-The file is immediately accessible at `http://127.0.0.1:8000/uploads/avatar.png`.
 
----
+Uploaded files are served statically from `http://127.0.0.1:8000/uploads/<filename>`.
 
-## 🔌 Smart Auto-Port Fallback
+## Port fallback
 
-Never get frustrated by `Error: [Errno 48] Address already in use`. If port 8000 is occupied by another app (or another `mock-api` instance), the engine smoothly seeks the next available port (8001, 8002, etc.) and starts right up with an alert in the console:
+If the requested port is already in use, `mock-api-py` selects the next available port and logs the change:
 
 ```
-⚠️  Port 8000 is busy. Auto-switched to available port 8001.
+Port 8000 is busy. Switched to available port 8001.
 ```
 
----
+## Authentication
 
-## 🛡️ Mock Authentication & JWT
-
-Simulate token-based authentication workflows in your frontend:
+To enable token authentication:
 
 ```bash
 mock-api db.json --auth
 ```
 
 When `--auth` is enabled:
-1. Public endpoints: `GET` collection requests and Swagger docs remain accessible.
-2. Mutating endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require an `Authorization: Bearer <token>` header, returning `401 Unauthorized` if missing or invalid.
-3. Authenticate and obtain tokens:
-   - `POST /auth/login` with `{ "email": "alice@example.com", "password": "any" }`
-   - `POST /auth/register` with `{ "name": "Charlie", "email": "charlie@example.com" }`
+1. `GET` requests and Swagger docs remain open.
+2. Mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require an `Authorization: Bearer <token>` header, returning `401 Unauthorized` when the token is missing or invalid.
+3. Available auth routes:
+   - `POST /auth/login` with `{"email": "alice@example.com", "password": "any"}`
+   - `POST /auth/register` with `{"name": "Charlie", "email": "charlie@example.com"}`
    - `GET /auth/me` with `Authorization: Bearer <token>`
 
----
+## Custom route rewrites
 
-## 🔀 Custom URL Rewriter
-
-Rewrite API paths, map legacy endpoints, or add global prefixes using a `routes.json` file:
+To rewrite paths or map legacy URLs, pass a `routes.json` file:
 
 ```bash
 mock-api db.json --routes routes.json
 ```
 
-**`routes.json`**:
+`routes.json`:
 ```json
 {
   "/api/*": "/$1",
@@ -315,100 +272,90 @@ mock-api db.json --routes routes.json
   "/top-products": "/products?_sort=price&_order=desc"
 }
 ```
-Now:
-- `GET /api/users` ➔ routes to `GET /users`
-- `GET /articles/42` ➔ routes to `GET /posts/42`
-- `GET /top-products` ➔ routes to `GET /products?_sort=price&_order=desc`
 
----
+Mapped requests:
+- `GET /api/users` routes to `GET /users`
+- `GET /articles/42` routes to `GET /posts/42`
+- `GET /top-products` routes to `GET /products?_sort=price&_order=desc`
 
-## 🎲 Chaos Engineering Examples
+## Chaos testing
 
-Test how your React, Vue, or mobile frontend handles flaky networks and server errors:
+Simulate network latency and server errors to test frontend handling:
 
 ```bash
 # Add fixed 500ms latency to every request
 mock-api db.json --delay 500
 
-# Simulate variable 3G mobile network (jitter between 200ms and 900ms)
+# Add variable jitter between 200ms and 900ms
 mock-api db.json --delay 200-900
 
-# Inject a 15% random failure rate to test Error Boundaries
+# Inject a 15% rate of HTTP 500 errors
 mock-api db.json --error-rate 0.15
 
-# Combine jitter, chaos errors, and auto-save
+# Combine latency jitter, error injection, and disk persistence
 mock-api db.json --delay 100-400 --error-rate 0.1 --save
 ```
 
----
+## Synthetic data generation
 
-## 🤖 Synthetic Data Generation
-
-Need test data immediately? Generate realistic datasets with Faker:
+Generate test datasets using Faker:
 
 ```bash
 mock-api generate --output data.json --schema "users:20,products:50,posts:30,comments:100"
 ```
 
-Then boot it right up:
+Start the server with the generated file:
 ```bash
 mock-api data.json
 ```
 
-Supported built-in schemas: `users`, `products`, `posts`, `comments`, `todos`, `companies`, plus generic custom names.
+Supported schemas: `users`, `products`, `posts`, `comments`, `todos`, `companies`, and generic custom names.
 
----
+## API reference
 
-## 📡 REST API & Query Reference
-
-Every route is automatically documented with interactive OpenAPI Swagger documentation at `/docs`:
+All endpoints are documented interactively in Swagger UI at `/docs`:
 
 <p align="center">
   <img src="docs/images/swagger_docs.png" alt="Interactive Swagger OpenAPI Docs" width="750" />
 </p>
 
-### Standard CRUD Endpoints
-- `GET    /products` - List products with query filtering
-- `GET    /products/1` - Get product by ID
-- `POST   /products` - Create product (auto-generates unique ID)
-- `PUT    /products/1` - Replace product
-- `PATCH  /products/1` - Partially update product
-- `DELETE /products/1` - Delete product
+### CRUD endpoints
+- `GET    /<collection>`: List items with filtering, sorting, and pagination
+- `GET    /<collection>/:id`: Get item by ID
+- `POST   /<collection>`: Create item (assigns a unique ID)
+- `PUT    /<collection>/:id`: Replace item
+- `PATCH  /<collection>/:id`: Partially update item
+- `DELETE /<collection>/:id`: Delete item
 
-### Singleton Endpoints
-- `GET   /profile` - Get singleton object
-- `PATCH /profile` - Update singleton fields
+### Singleton endpoints
+- `GET   /<singleton>`: Get singleton object
+- `PATCH /<singleton>`: Update singleton fields
 
-### Query Parameters
+### Query parameters
 
-| Feature | Example | Description |
-|---------|---------|-------------|
-| **Exact Filter** | `?category=electronics&inStock=true` | Filter by scalar attributes |
-| **Greater Than or Equal** | `?price_gte=50` | Numeric or string comparison |
-| **Less Than or Equal** | `?price_lte=100` | Numeric or string comparison |
-| **Not Equal** | `?category_ne=furniture` | Exclude matching values |
-| **Full-Text Search** | `?q=wireless` | Case-insensitive search across all fields |
-| **Sort** | `?_sort=price&_order=desc` | Sort by field ascending or descending |
-| **Pagination** | `?_page=1&_limit=10` | Returns items with `X-Total-Count` and RFC `Link` headers |
-| **Nested Routes** | `GET /users/1/products` | Returns products belonging to `userId: 1` |
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| Exact filter | `?category=electronics&inStock=true` | Filters by matching properties |
+| Comparison | `?price_gte=50&price_lte=100` | Supports `_gt`, `_gte`, `_lt`, `_lte`, `_ne` |
+| Substring match | `?title_like=mouse` | Case-insensitive substring match |
+| Full-text search | `?q=wireless` | Searches across all object fields |
+| Sort | `?_sort=price&_order=desc` | Sorts ascending (`asc`) or descending (`desc`) |
+| Pagination | `?_page=1&_limit=10` | Paginates results with `X-Total-Count` and RFC `Link` headers |
+| Nested routes | `GET /users/1/products` | Filters products matching `userId: 1` |
 
-For detailed documentation, see [docs/api.md](docs/api.md).
+For more details, see [docs/api.md](docs/api.md).
 
----
-
-## 🧪 Running Tests
+## Development and tests
 
 ```bash
-# Create virtualenv and install dependencies
+# Set up virtual environment and install dependencies
 uv venv
 uv pip install -e ".[dev]"
 
-# Run full test suite
+# Run test suite
 uv run pytest -v
 ```
 
----
+## License
 
-## 📄 License
-
-MIT © [Alexandr Motologa](LICENSE)
+MIT (c) [Alexandr Motologa](LICENSE)
