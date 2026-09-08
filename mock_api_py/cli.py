@@ -161,25 +161,35 @@ def run_server(
     elif Path("sample_db.json").exists():
         target_path = Path("sample_db.json")
 
+    starter_data = {
+        "posts": [
+            {"id": 1, "title": "Hello World", "userId": 1},
+            {"id": 2, "title": "Modern Mock API", "userId": 1},
+        ],
+        "users": [
+            {"id": 1, "name": "Developer", "email": "dev@example.com"}
+        ],
+        "profile": {"status": "ready"}
+    }
+
     initial_data = None
     if not target_path or not target_path.exists():
         if target_path:
-            console.print(f"[bold red]Error:[/bold red] File '{target_path}' not found.")
-            console.print("[dim]Tip: Run 'mock-api generate --output db.json' to create one.[/dim]")
-            raise typer.Exit(code=1)
+            console.print(f"✨ [bold yellow]File '{target_path}' not found.[/bold yellow] Creating starter database with sample data...")
+            try:
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(target_path, "w", encoding="utf-8") as f:
+                    json.dump(starter_data, f, indent=2)
+                    f.write("\n")
+                console.print(f"✅ Created [bold green]{target_path}[/bold green] with sample resources ([cyan]posts[/cyan], [cyan]users[/cyan], [cyan]profile[/cyan]).\n")
+            except Exception as e:
+                console.print(f"[bold red]Warning:[/bold red] Could not create '{target_path}' ({e}). Falling back to in-memory mode.")
+                initial_data = starter_data
+                target_path = None
         else:
             # Create a minimal sample in-memory if no file provided
             console.print("[yellow]No JSON file specified. Using in-memory starter database...[/yellow]")
-            initial_data = {
-                "posts": [
-                    {"id": 1, "title": "Hello World", "userId": 1},
-                    {"id": 2, "title": "Modern Mock API", "userId": 1},
-                ],
-                "users": [
-                    {"id": 1, "name": "Developer", "email": "dev@example.com"}
-                ],
-                "profile": {"status": "ready"}
-            }
+            initial_data = starter_data
 
     store = DataStore(
         file_path=target_path,

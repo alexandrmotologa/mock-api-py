@@ -40,73 +40,123 @@ If you loved `json-server`, you will love `mock-api-py` even more:
 
 ---
 
-## 📦 Installation
+## 📦 Quickstart (Get Started in 5 Seconds)
 
-Run directly with `uvx` (no installation required):
+You don't need to clone this repository, create virtual environments, or write a single line of code. Choose the method that best fits your workflow:
+
+### 🌟 Method 1: Instant Zero-Install Run (Recommended via `uvx`)
+
+If you have [`uv`](https://docs.astral.sh/uv/) installed (the modern, ultra-fast Python package runner, equivalent to `npx` in Node.js):
+
+#### Option A: Run immediately without any files
+```bash
+uvx mock-api-py
+```
+> **What happens:** The server starts instantly with an in-memory starter database (`posts`, `users`, `profile`). No files are created on your disk!
+
+#### Option B: Run with a JSON database file
 ```bash
 uvx mock-api-py db.json
 ```
+> **Magic Auto-Creation:** If `db.json` does **not** exist in your folder yet, `mock-api-py` will automatically create a starter `db.json` with sample data for you on the spot, and start the server immediately!
 
-Or install via `pip` / `uv`:
+---
+
+### 🤖 Method 2: Generate Realistic Synthetic Data with Faker
+
+Want custom test data (e.g. 20 users, 50 products, 30 posts)?
+
 ```bash
-pip install mock-api-py
-# or
-uv tool install mock-api-py
+# Step 1: Generate realistic dataset
+uvx mock-api-py generate --output db.json --schema "users:20,products:50,posts:30"
+
+# Step 2: Boot the server
+uvx mock-api-py db.json
 ```
 
 ---
 
-## 🖥️ Console Interface
+### 🐍 Method 3: Classic Installation via `pip`
 
-When you run `mock-api`, your terminal greets you with a clean, informative dashboard:
+If you prefer installing tools permanently into your Python environment:
+
+```bash
+pip install mock-api-py
+```
+
+Then run with any of the available command aliases from anywhere:
+```bash
+mock-api db.json
+# or
+fastmock db.json
+# or
+mock-api-py db.json
+```
+
+---
+
+## 🖥️ What to Expect When You Run It
+
+Once started, your terminal displays an aesthetic dashboard showing your active endpoints:
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                     ⚡ mock-api v0.1.0 ⚡                         ┃
+┃                     ⚡ mock-api v0.1.2 ⚡                         ┃
 ┃           Modern Instant Mock CRUD Server for Developers         ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
- 🚀 Server running at: http://127.0.0.1:8000
- 📖 Interactive API Docs: http://127.0.0.1:8000/docs
+ 🚀 Server running at:      http://127.0.0.1:8000
+ 💻 Web Dashboard Studio:    http://127.0.0.1:8000/_admin
+ 📖 Interactive API Docs:     http://127.0.0.1:8000/docs
+ 📘 TypeScript Definitions:   http://127.0.0.1:8000/_types
+ 📤 File Upload Endpoint:     http://127.0.0.1:8000/upload
  ⏱️  Simulated Delay: 300ms | 💾 Auto-save: ON
  📦 Detected Resources:
-   • GET /products       [4 items]
-   • GET /users          [2 items]
+   • GET /posts          [2 items]
+   • GET /users          [1 item]
    • GET /profile        [1 object]
-
-[2026-09-08 22:30:15] GET    /products?category=electronics - 200 OK (304.1ms)
-[2026-09-08 22:30:18] POST   /products - 201 (301.5ms)
-[2026-09-08 22:30:22] DELETE /products/1 - 200 OK (300.8ms)
 ```
+
+Now open your browser:
+- **Web Studio Dashboard**: [http://127.0.0.1:8000/_admin](http://127.0.0.1:8000/_admin)
+- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **API Endpoint**: [http://127.0.0.1:8000/posts](http://127.0.0.1:8000/posts)
+
+To stop the server at any time, simply press `Ctrl + C` in your terminal.
 
 ---
 
-## 🏁 Quickstart
+## 💡 Beginner FAQ & Troubleshooting
 
-### 1. Create a `db.json`
-```json
-{
-  "products": [
-    { "id": 1, "title": "Wireless Mouse", "price": 29.99, "category": "electronics", "inStock": true, "userId": 1 },
-    { "id": 2, "title": "Mechanical Keyboard", "price": 89.99, "category": "electronics", "inStock": false, "userId": 1 }
-  ],
-  "users": [
-    { "id": 1, "name": "Alice Johnson", "email": "alice@example.com" }
-  ],
-  "profile": {
-    "name": "Alexandr",
-    "theme": "dark"
-  }
-}
+<details>
+<summary><b>Q: What is <code>uvx</code> and how do I get it?</b></summary>
+
+`uvx` is a tool runner bundled with [`uv`](https://github.com/astral-sh/uv), the extremely fast Python package manager from Astral. It works just like `npx` in the JavaScript ecosystem: it downloads the tool in an isolated sandbox and runs it immediately without cluttering your system.
+
+To install `uv` on Windows, run in PowerShell:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-
-### 2. Start the Server
+Or on macOS/Linux:
 ```bash
-mock-api db.json
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+Or via pip:
+```bash
+pip install uv
+```
+</details>
 
-Visit:
-- **API**: [http://127.0.0.1:8000/products](http://127.0.0.1:8000/products)
-- **Interactive Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+<details>
+<summary><b>Q: Where is <code>db.json</code> created or looked for?</b></summary>
+
+The file is read from or created in the **current working directory** of your terminal (the folder path shown on the left of your terminal prompt).
+</details>
+
+<details>
+<summary><b>Q: What if port 8000 is already in use by another app?</b></summary>
+
+No problem! `mock-api-py` includes smart port hunting. It will detect that port 8000 is busy and automatically switch to the next open port (e.g., 8001) with a friendly notification in the console.
+</details>
 
 ---
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mock-api-py"
-version = "0.1.1"
+version = "0.1.2"
 description = "Modern Instant Mock CRUD Engine with FastAPI, Rich CLI, and Chaos Testing"
 readme = "README.md"
 requires-python = ">=3.11"
