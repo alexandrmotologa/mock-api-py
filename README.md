@@ -27,7 +27,9 @@ If you loved `json-server`, you will love `mock-api-py` even more:
   - Multi-property sorting (`_sort=price&_order=desc`)
   - RFC-compliant pagination with `X-Total-Count` and `Link` headers (`_page=1&_limit=10`)
 - 🔗 **Nested Relational Routes**: Automatically detects foreign keys (e.g. `userId` in `products` -> `GET /users/1/products`).
-- 🤖 **Synthetic Data Generator**: Generate realistic datasets with Faker straight from the CLI (`mock-api generate`).
+- 🛡️ **Mock Authentication Engine**: Real HS256 JWT tokens, `/auth/login`, `/auth/register`, `/auth/me`, and bearer token protection on mutations (`--auth`).
+- 🔀 **Custom URL Rewriter**: Map custom prefixes (`/api/*`), parameter aliases (`/articles/:id`), and query rewrites with `routes.json` (`--routes`).
+- 💻 **Embedded Web Studio Dashboard**: Sleek dark-mode glassmorphic SPA at `/_admin` with live table/JSON views, search, and query builder.
 - 💾 **Safe Atomic Persistence**: In-memory speed by default with optional atomic write-back (`--save`) or strict `--read-only` mode.
 - 👀 **Live Watch Mode**: Auto-reload in-memory data store when the JSON file changes on disk (`--watch`).
 - 📁 **Static File Serving**: Serve static assets alongside mock APIs (`--static ./public`).
@@ -122,6 +124,63 @@ mock-api [DB_FILE] [OPTIONS]
 | `--read-only` | | `False` | Disallow all mutating HTTP methods (POST, PUT, PATCH, DELETE) |
 | `--watch` | `-w` | `False` | Auto-reload in-memory database when the file is modified externally on disk |
 | `--static` | | `None` | Directory to mount as static file server at `/static` |
+| `--auth` | | `False` | Enable mock authentication and require JWT Bearer tokens for mutations |
+| `--routes` | `-r` | `None` | Path to JSON custom routes rewriter file (e.g. `routes.json`) |
+
+---
+
+## 💻 Web Studio Dashboard (`/_admin`)
+
+Access an interactive, modern dark-mode admin interface in your browser:
+```
+http://127.0.0.1:8000/_admin
+```
+Features:
+- Live resource explorer showing all collections and singletons with real-time record counts.
+- Instant full-text search (`q=`) and interactive sort controls.
+- Single-click toggle between responsive data table and syntax-highlighted JSON viewer.
+- Direct links to Swagger OpenAPI documentation.
+
+---
+
+## 🛡️ Mock Authentication & JWT
+
+Simulate token-based authentication workflows in your frontend:
+
+```bash
+mock-api db.json --auth
+```
+
+When `--auth` is enabled:
+1. Public endpoints: `GET` collection requests and Swagger docs remain accessible.
+2. Mutating endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) require an `Authorization: Bearer <token>` header, returning `401 Unauthorized` if missing or invalid.
+3. Authenticate and obtain tokens:
+   - `POST /auth/login` with `{ "email": "alice@example.com", "password": "any" }`
+   - `POST /auth/register` with `{ "name": "Charlie", "email": "charlie@example.com" }`
+   - `GET /auth/me` with `Authorization: Bearer <token>`
+
+---
+
+## 🔀 Custom URL Rewriter
+
+Rewrite API paths, map legacy endpoints, or add global prefixes using a `routes.json` file:
+
+```bash
+mock-api db.json --routes routes.json
+```
+
+**`routes.json`**:
+```json
+{
+  "/api/*": "/$1",
+  "/articles/:id": "/posts/:id",
+  "/top-products": "/products?_sort=price&_order=desc"
+}
+```
+Now:
+- `GET /api/users` ➔ routes to `GET /users`
+- `GET /articles/42` ➔ routes to `GET /posts/42`
+- `GET /top-products` ➔ routes to `GET /products?_sort=price&_order=desc`
 
 ---
 

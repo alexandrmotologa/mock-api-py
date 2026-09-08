@@ -110,3 +110,38 @@ GET /products?_page=1&_limit=10
 ### Chaos Error Rate (`--error-rate`)
 * Inject random HTTP 500 errors: `--error-rate 0.1` (10% of requests will fail).
 * The documentation endpoints (`/docs`, `/redoc`, `/openapi.json`) are automatically exempt from chaos injection so developers can inspect schemas uninterrupted.
+
+---
+
+## 4. Authentication Endpoints (`--auth`)
+
+When started with `--auth`, the server exposes dedicated authentication routes and protects write operations (`POST`, `PUT`, `PATCH`, `DELETE`):
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/login` | Login with email/password; returns access token & user profile |
+| `POST` | `/auth/register` | Register new user in `users` collection; returns access token |
+| `GET` | `/auth/me` | Inspect current user payload from `Authorization: Bearer <token>` |
+
+---
+
+## 5. Custom URL Rewriting (`--routes`)
+
+Supply a JSON mapping file (e.g. `routes.json`) to rewrite paths and default parameters before route evaluation:
+```json
+{
+  "/api/*": "/$1",
+  "/articles/:id": "/posts/:id",
+  "/top-products": "/products?_sort=price&_order=desc"
+}
+```
+
+---
+
+## 6. Web Studio Dashboard (`/_admin`)
+
+Access the browser dashboard at:
+```http
+GET /_admin
+```
+Provides visual table view, raw JSON inspector, full-text search, live filtering, and system health status.

@@ -46,6 +46,8 @@ def print_banner(
     read_only: bool = False,
     watch: bool = False,
     static_dir: Optional[str] = None,
+    auth: bool = False,
+    routes: Optional[str] = None,
 ) -> None:
     """Renders the aesthetic Rich startup banner and resource overview."""
     banner_text = Text()
@@ -62,8 +64,9 @@ def print_banner(
     console.print(panel)
 
     base_url = f"http://{host}:{port}"
-    console.print(f" 🚀 [bold green]Server running at:[/bold green] [underline cyan]{base_url}[/underline cyan]")
-    console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta] [underline cyan]{base_url}/docs[/underline cyan]")
+    console.print(f" 🚀 [bold green]Server running at:[/bold green]   [underline cyan]{base_url}[/underline cyan]")
+    console.print(f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan] [underline cyan]{base_url}/_admin[/underline cyan]")
+    console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]  [underline cyan]{base_url}/docs[/underline cyan]")
 
     status_parts = []
     if delay:
@@ -72,14 +75,18 @@ def print_banner(
         status_parts.append(f"🎲 Chaos Error Rate: [bold red]{int(error_rate * 100)}%[/bold red]")
     if watch:
         status_parts.append("👀 Watch: [bold green]ON[/bold green]")
+    if auth:
+        status_parts.append("🛡️  Auth: [bold green]JWT Active[/bold green]")
     if read_only:
         status_parts.append("🔒 Mode: [bold red]Read-Only[/bold red]")
     else:
         status_parts.append(f"💾 Auto-save: [bold green]{'ON' if save else 'OFF (In-Memory)'}[/bold green]")
 
     console.print(f" {' | '.join(status_parts)}")
+    if routes:
+        console.print(f" 🔀 [bold]Custom Routes:[/bold] [yellow]{routes}[/yellow]")
     if static_dir:
-        console.print(f" 📁 [bold]Static files:[/bold] [underline cyan]{base_url}/static[/underline cyan] [dim]({static_dir})[/dim]")
+        console.print(f" 📁 [bold]Static files:[/bold]  [underline cyan]{base_url}/static[/underline cyan] [dim]({static_dir})[/dim]")
     console.print(" 📦 [bold]Detected Resources:[/bold]")
 
     collections = store.get_collections()
@@ -121,6 +128,12 @@ def run_server(
     ),
     static: Optional[str] = typer.Option(
         None, "--static", help="Directory path to serve static files from at /static."
+    ),
+    auth: bool = typer.Option(
+        False, "--auth", help="Enable mock authentication and JWT token validation."
+    ),
+    routes: Optional[str] = typer.Option(
+        None, "--routes", "-r", help="Path to JSON custom routes rewriter file."
     ),
 ) -> None:
     """Starts the instant modern mock REST API server from a JSON database file."""
@@ -167,6 +180,8 @@ def run_server(
         enable_logging=True,
         watch=watch,
         static_dir=static,
+        enable_auth=auth,
+        routes_file=routes,
     )
 
     print_banner(
@@ -179,6 +194,8 @@ def run_server(
         read_only=read_only,
         watch=watch,
         static_dir=static,
+        auth=auth,
+        routes=routes,
     )
 
     uvicorn.run(
