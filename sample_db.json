@@ -1,0 +1,55 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "title": "Wireless Mouse",
+      "price": 29.99,
+      "category": "electronics",
+      "inStock": true,
+      "userId": 1
+    },
+    {
+      "id": 2,
+      "title": "Mechanical Keyboard",
+      "price": 89.99,
+      "category": "electronics",
+      "inStock": false,
+      "userId": 1
+    },
+    {
+      "id": 3,
+      "title": "Noise Cancelling Headphones",
+      "price": 199.99,
+      "category": "audio",
+      "inStock": true,
+      "userId": 2
+    },
+    {
+      "id": 4,
+      "title": "USB-C Hub",
+      "price": 39.99,
+      "category": "electronics",
+      "inStock": true,
+      "userId": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "role": "user"
+    }
+  ],
+  "profile": {
+    "name": "Alexandr",
+    "status": "building",
+    "theme": "dark"
+  }
+}
