@@ -1,21 +1,23 @@
-from contextlib import asynccontextmanager
 import asyncio
-from pathlib import Path
 import time
-from typing import Optional
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from starlette.staticfiles import StaticFiles
 from rich.console import Console
+from starlette.staticfiles import StaticFiles
 
 from mock_api_py.admin import create_admin_router
-from mock_api_py.auth import AuthMiddleware, create_auth_router, DEFAULT_SECRET
+from mock_api_py.auth import DEFAULT_SECRET, AuthMiddleware, create_auth_router
 from mock_api_py.middleware import (
     ChaosErrorMiddleware,
     DelayInjectorMiddleware,
     RequestLoggerMiddleware,
 )
+from mock_api_py.proxy_recorder import ProxyRecorderMiddleware
 from mock_api_py.rewriter import URLRewriter, URLRewriterMiddleware
 from mock_api_py.router import create_mock_router
 from mock_api_py.store import DataStore
@@ -26,15 +28,18 @@ console = Console()
 
 def create_app(
     store: DataStore,
-    delay: Optional[str] = None,
+    delay: str | None = None,
     error_rate: float = 0.0,
     enable_logging: bool = True,
     watch: bool = False,
-    static_dir: Optional[str] = None,
+    static_dir: str | None = None,
     enable_auth: bool = False,
     jwt_secret: str = DEFAULT_SECRET,
-    routes_file: Optional[str] = None,
+    routes_file: str | None = None,
     upload_dir: str = ".uploads",
+    proxy: str | None = None,
+    record: bool = False,
+    proxy_client: Any = None,
 ) -> FastAPI:
     """Creates and configures a FastAPI instance with all dynamic routes and middlewares."""
 
@@ -99,6 +104,15 @@ def create_app(
     if routes_file:
         rewriter = URLRewriter.from_file(routes_file)
         app.add_middleware(URLRewriterMiddleware, rewriter=rewriter)
+
+    if proxy:
+        app.add_middleware(
+            ProxyRecorderMiddleware,
+            upstream_url=proxy,
+            record=record,
+            store=store,
+            client=proxy_client,
+        )
 
     # 3. Dynamic Routes & Auth Router
     if enable_auth:
@@ -172,6 +186,8 @@ def create_app(
             "typescript_types": "/_types",
             "upload_endpoint": "/upload",
             "auth_enabled": enable_auth,
+            "proxy_enabled": bool(proxy),
+            "record_enabled": record,
             "resources": {
                 "collections": store.get_collections(),
                 "singletons": store.get_singletons(),

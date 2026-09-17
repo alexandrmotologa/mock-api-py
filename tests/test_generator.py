@@ -1,6 +1,7 @@
 """Unit tests for Faker synthetic data generation."""
 
 import json
+
 from mock_api_py.generator import generate_mock_database
 
 
@@ -25,6 +26,6 @@ def test_generator_schema_parsing(tmp_path):
 
     # Verify file saved to disk
     assert out_file.exists()
-    with open(out_file, "r", encoding="utf-8") as f:
+    with open(out_file, encoding="utf-8") as f:
         loaded = json.load(f)
     assert len(loaded["users"]) == 5

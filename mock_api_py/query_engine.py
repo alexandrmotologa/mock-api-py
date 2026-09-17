@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 @dataclass
 class QueryResult:
     """Encapsulates the filtered/paginated items and pagination metadata."""
-    items: List[Dict[str, Any]]
+    items: list[dict[str, Any]]
     total_count: int
-    link_header: Optional[str] = None
+    link_header: str | None = None
 
 
 def _coerce_value(raw: str) -> Any:
@@ -98,11 +98,11 @@ def _compare_values(val: Any, target: Any, op: str) -> bool:
 
 def _build_link_header(
     base_url: str,
-    query_params: Dict[str, Any],
+    query_params: dict[str, Any],
     page: int,
     limit: int,
     total_count: int,
-) -> Optional[str]:
+) -> str | None:
     """Builds an RFC-5988 Link header for pagination."""
     if limit <= 0 or total_count <= 0:
         return None
@@ -120,7 +120,7 @@ def _build_link_header(
         new_query = urlencode(params)
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, new_query, parsed.fragment))
 
-    links: List[str] = []
+    links: list[str] = []
     links.append(f'<{make_url(1)}>; rel="first"')
 
     if page > 1:
@@ -135,9 +135,9 @@ def _build_link_header(
 
 
 def execute_query(
-    items: List[Dict[str, Any]],
-    params: Dict[str, Any],
-    request_url: Optional[str] = None,
+    items: list[dict[str, Any]],
+    params: dict[str, Any],
+    request_url: str | None = None,
 ) -> QueryResult:
     """
     Executes full filtering, searching, sorting, and pagination on a list of dicts.
@@ -232,8 +232,8 @@ def execute_query(
             direction = orders[i] if i < len(orders) else (orders[0] if orders else "asc")
             is_desc = direction.lower() == "desc"
 
-            def sort_key(item: Dict[str, Any]) -> Tuple[int, Any]:
-                val = item.get(field)
+            def sort_key(item: dict[str, Any], current_field: str = field) -> tuple[int, Any]:
+                val = item.get(current_field)
                 if val is None:
                     return (1, "")
                 if isinstance(val, (int, float)) and not isinstance(val, bool):
@@ -247,7 +247,7 @@ def execute_query(
     # 5. Pagination (_page, _limit)
     page_param = params.get("_page")
     limit_param = params.get("_limit")
-    link_header: Optional[str] = None
+    link_header: str | None = None
 
     if page_param is not None or limit_param is not None:
         try:

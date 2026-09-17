@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -31,7 +31,7 @@ def _base64url_decode(data: str) -> bytes:
     return base64.urlsafe_b64decode(data.encode("utf-8"))
 
 
-def create_access_token(payload: Dict[str, Any], secret: str = DEFAULT_SECRET, expires_in: int = 86400) -> str:
+def create_access_token(payload: dict[str, Any], secret: str = DEFAULT_SECRET, expires_in: int = 86400) -> str:
     """Generates a standard HS256 signed JSON Web Token."""
     header = {"alg": "HS256", "typ": "JWT"}
     token_payload = dict(payload)
@@ -41,21 +41,21 @@ def create_access_token(payload: Dict[str, Any], secret: str = DEFAULT_SECRET, e
     encoded_header = _base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
     encoded_payload = _base64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
 
-    signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
+    signing_input = f"{encoded_header}.{encoded_payload}".encode()
     signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
     encoded_signature = _base64url_encode(signature)
 
     return f"{encoded_header}.{encoded_payload}.{encoded_signature}"
 
 
-def verify_access_token(token: str, secret: str = DEFAULT_SECRET) -> Optional[Dict[str, Any]]:
+def verify_access_token(token: str, secret: str = DEFAULT_SECRET) -> dict[str, Any] | None:
     """Verifies a JWT signature and expiration. Returns payload if valid, None otherwise."""
     parts = token.strip().split(".")
     if len(parts) != 3:
         return None
 
     encoded_header, encoded_payload, encoded_signature = parts
-    signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
+    signing_input = f"{encoded_header}.{encoded_payload}".encode()
     expected_sig = _base64url_encode(hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest())
 
     if not hmac.compare_digest(expected_sig, encoded_signature):

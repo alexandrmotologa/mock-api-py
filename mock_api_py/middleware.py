@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import random
-import re
 import time
 from datetime import datetime
-from typing import Optional, Tuple
 
 from rich.console import Console
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -19,7 +17,7 @@ console = Console()
 DOCS_PATHS = {"/docs", "/redoc", "/openapi.json", "/favicon.ico"}
 
 
-def parse_delay_arg(delay_arg: Optional[str]) -> Optional[Tuple[float, float]]:
+def parse_delay_arg(delay_arg: str | None) -> tuple[float, float] | None:
     """
     Parses delay input into (min_seconds, max_seconds).
     Supports:
@@ -49,7 +47,7 @@ def parse_delay_arg(delay_arg: Optional[str]) -> Optional[Tuple[float, float]]:
 class DelayInjectorMiddleware(BaseHTTPMiddleware):
     """Injects fixed or randomized artificial latency before processing the request."""
 
-    def __init__(self, app, delay_spec: Optional[str] = None):
+    def __init__(self, app, delay_spec: str | None = None):
         super().__init__(app)
         self.delay_range = parse_delay_arg(delay_spec)
 
@@ -71,16 +69,19 @@ class ChaosErrorMiddleware(BaseHTTPMiddleware):
         self.error_rate = max(0.0, min(1.0, float(error_rate or 0.0)))
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if self.error_rate > 0 and request.url.path not in DOCS_PATHS:
-            if random.random() < self.error_rate:
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "error": "Chaos Engine: Simulated 500 Internal Server Error",
-                        "path": request.url.path,
-                        "timestamp": datetime.now().isoformat(),
-                    },
-                )
+        if (
+            self.error_rate > 0
+            and request.url.path not in DOCS_PATHS
+            and random.random() < self.error_rate
+        ):
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Chaos Engine: Simulated 500 Internal Server Error",
+                    "path": request.url.path,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
 
         return await call_next(request)
 
@@ -104,7 +105,6 @@ class RequestLoggerMiddleware(BaseHTTPMiddleware):
             full_path += f"?{request.url.query}"
 
         status_code = response.status_code
-        status_text = response.status_code
 
         # Color coding status
         if 200 <= status_code < 300:

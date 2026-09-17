@@ -1,7 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
-from mock_api_py.store import DataStore
+
 from mock_api_py.server import create_app
+from mock_api_py.store import DataStore
 
 
 @pytest.mark.anyio

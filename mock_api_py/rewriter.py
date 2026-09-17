@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -32,7 +32,7 @@ class RewriteRule:
         self.regex = re.compile(regex_str)
         self.param_names = re.findall(r":([a-zA-Z0-9_]+)", self.source_raw)
 
-    def match_and_rewrite(self, path: str) -> Optional[Tuple[str, Optional[str]]]:
+    def match_and_rewrite(self, path: str) -> tuple[str, str | None] | None:
         """Matches path against the rule. Returns (new_path, new_query) or None."""
         match = self.regex.match(path)
         if not match:
@@ -59,22 +59,22 @@ class RewriteRule:
 class URLRewriter:
     """Manages a list of RewriteRules loaded from dict or JSON file."""
 
-    def __init__(self, rules: Optional[Dict[str, str]] = None) -> None:
-        self.rules: List[RewriteRule] = []
+    def __init__(self, rules: dict[str, str] | None = None) -> None:
+        self.rules: list[RewriteRule] = []
         if rules:
             for src, tgt in rules.items():
                 self.rules.append(RewriteRule(src, tgt))
 
     @classmethod
-    def from_file(cls, file_path: Union[str, Path]) -> URLRewriter:
+    def from_file(cls, file_path: str | Path) -> URLRewriter:
         path = Path(file_path)
         if not path.exists():
             return cls({})
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return cls(data if isinstance(data, dict) else {})
 
-    def rewrite(self, path: str) -> Tuple[str, Optional[str]]:
+    def rewrite(self, path: str) -> tuple[str, str | None]:
         """Applies the first matching rewrite rule. Returns (new_path, optional_query)."""
         for rule in self.rules:
             result = rule.match_and_rewrite(path)

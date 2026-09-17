@@ -33,6 +33,8 @@
 - **Route rewrites**: Remaps URLs and query strings using a `routes.json` file (`--routes`).
 - **Web studio**: Browser dashboard at `/_admin` with data tables, JSON viewer, query builder, and database reset.
 - **Storage options**: In-memory storage by default, with optional disk persistence (`--save`) or read-only mode (`--read-only`).
+- **Dynamic schema generator**: Generates synthetic data from inline model syntax (`--model`) or JSON/YAML schema files (`--schema`) with automatic foreign key relation resolution.
+- **VCR reverse proxy & record mode**: Proxies requests to an upstream API and captures live JSON responses into a local mock database (`--proxy <url> --record`).
 - **File watching**: Reloads in-memory data when the database file changes on disk (`--watch`).
 - **Static files**: Serves static assets from a designated folder (`--static`).
 
@@ -298,18 +300,58 @@ mock-api db.json --delay 100-400 --error-rate 0.1 --save
 
 ## Synthetic data generation
 
-Generate test datasets using Faker:
+Generate test datasets using Faker, inline model definitions, or schema files:
 
+### 1. Inline model definitions
+Define custom models directly on the command line:
+
+```bash
+fastmock generate \
+  --model "Patient:id,full_name:name,email:email,blood_type:choice(A+,A-,B+,B-,O+,O-),birth_date:date" \
+  --count 100 \
+  --output clinic_db.json
+```
+
+Supported field types:
+- `id`: Auto-incrementing integer or UUID (`id:uuid`)
+- `name`, `full_name`, `first_name`, `last_name`: Random names
+- `email`: Valid unique email addresses
+- `phone`: Phone numbers
+- `price`, `amount`: Decimals formatted to two decimal places
+- `date`, `created_at`: ISO 8601 past timestamps
+- `uuid`: Standard UUIDv4 strings
+- `choice(v1,v2,...)`: Random item picked from the list
+- `int(min,max)`: Random integers within bounds
+- `boolean`: Random `true` or `false`
+- Foreign keys: Fields ending with `Id` (e.g. `userId`, `doctorId`) automatically pick existing IDs from corresponding collections to preserve relational consistency.
+
+### 2. Schema files (JSON or YAML)
+Generate mock data from a JSON Schema or YAML model file:
+
+```bash
+fastmock generate --schema schema.json --count 50 --output db.json
+```
+
+### 3. Template shortcuts
 ```bash
 mock-api generate --output data.json --schema "users:20,products:50,posts:30,comments:100"
 ```
 
-Start the server with the generated file:
+## VCR reverse proxy and record mode
+
+Run `mock-api-py` as a transparent reverse proxy in front of an upstream API to capture live HTTP responses into a local mock file:
+
 ```bash
-mock-api data.json
+# Proxy upstream requests and record live responses into recorded_db.json
+fastmock --proxy https://api.github.com --record --save recorded_db.json
 ```
 
-Supported schemas: `users`, `products`, `posts`, `comments`, `todos`, `companies`, and generic custom names.
+When `--record` is active:
+1. Incoming requests pass through to the upstream server.
+2. Successful `GET` responses with JSON payloads are automatically ingested into collections matching the URL path (e.g., `/v1/charges` records into `charges`).
+3. If `--save` is enabled, captured records persist atomically to disk.
+4. You can then run `fastmock recorded_db.json` offline without hitting the upstream network.
+
 
 ## API reference
 

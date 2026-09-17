@@ -1,8 +1,9 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
-from mock_api_py.store import DataStore
+
 from mock_api_py.server import create_app
-from mock_api_py.types_generator import generate_typescript_definitions, _to_pascal_case
+from mock_api_py.store import DataStore
+from mock_api_py.types_generator import _to_pascal_case, generate_typescript_definitions
 
 
 def test_pascal_case_conversion():

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
@@ -10,7 +9,7 @@ from mock_api_py.query_engine import execute_query
 from mock_api_py.store import DataStore, ReadOnlyError
 
 
-def _find_foreign_key_relations(store: DataStore) -> List[Dict[str, str]]:
+def _find_foreign_key_relations(store: DataStore) -> list[dict[str, str]]:
     """
     Detects relational foreign keys between collections.
     For example:
@@ -29,7 +28,7 @@ def _find_foreign_key_relations(store: DataStore) -> List[Dict[str, str]]:
         if not isinstance(sample, dict):
             continue
 
-        for key in sample.keys():
+        for key in sample:
             if key.endswith("Id") and len(key) > 2:
                 prefix = key[:-2].lower()  # e.g. "user" from "userId"
                 # Check potential parent collection names
@@ -51,7 +50,7 @@ def create_mock_router(store: DataStore) -> APIRouter:
     router = APIRouter()
 
     # 1. Register Collection Routes
-    for col_name in store.get_collections().keys():
+    for col_name in store.get_collections():
         tag = col_name.capitalize()
 
         # Closure generator for GET /{collection}

@@ -6,7 +6,6 @@ import json
 import socket
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Ensure UTF-8 encoding on Windows terminal
 if sys.platform == "win32":
@@ -25,7 +24,8 @@ from rich.panel import Panel
 from rich.text import Text
 
 from mock_api_py import __version__
-from mock_api_py.generator import generate_mock_database
+from mock_api_py.generator import generate_from_schema, generate_mock_database
+from mock_api_py.schema_parser import parse_inline_model, parse_schema_file
 from mock_api_py.server import create_app
 from mock_api_py.store import DataStore
 
@@ -53,14 +53,16 @@ def print_banner(
     host: str,
     port: int,
     store: DataStore,
-    delay: Optional[str] = None,
+    delay: str | None = None,
     error_rate: float = 0.0,
     save: bool = False,
     read_only: bool = False,
     watch: bool = False,
-    static_dir: Optional[str] = None,
+    static_dir: str | None = None,
     auth: bool = False,
-    routes: Optional[str] = None,
+    routes: str | None = None,
+    proxy: str | None = None,
+    record: bool = False,
 ) -> None:
     """Renders the aesthetic Rich startup banner and resource overview."""
     banner_text = Text()
@@ -84,6 +86,10 @@ def print_banner(
     console.print(f" 📤 [bold green]File Upload Endpoint:[/bold green]     [underline cyan]{base_url}/upload[/underline cyan]")
 
     status_parts = []
+    if proxy:
+        status_parts.append(f"📡 Proxy: [bold cyan]{proxy}[/bold cyan]")
+    if record:
+        status_parts.append("⏺️  Record: [bold red]ON[/bold red]")
     if delay:
         status_parts.append(f"⏱️  Simulated Delay: [bold yellow]{delay}[/bold yellow]")
     if error_rate > 0:
@@ -120,13 +126,13 @@ KNOWN_COMMANDS = {"generate", "run", "--help", "-h", "--version", "-v"}
 
 @app.command(name="run")
 def run_server(
-    db_file: Optional[str] = typer.Argument(
+    db_file: str | None = typer.Argument(
         None,
         help="Path to the JSON database file. Defaults to db.json or sample_db.json if exists.",
     ),
     host: str = typer.Option("127.0.0.1", "--host", "-h", help="Bind host address."),
     port: int = typer.Option(8000, "--port", "-p", help="Bind port."),
-    delay: Optional[str] = typer.Option(
+    delay: str | None = typer.Option(
         None, "--delay", "-d", help="Simulated latency in ms (e.g. 500 or 200-800)."
     ),
     error_rate: float = typer.Option(
@@ -141,19 +147,25 @@ def run_server(
     watch: bool = typer.Option(
         False, "--watch", "-w", help="Watch JSON file and auto-reload in-memory data on external change."
     ),
-    static: Optional[str] = typer.Option(
+    static: str | None = typer.Option(
         None, "--static", help="Directory path to serve static files from at /static."
     ),
     auth: bool = typer.Option(
         False, "--auth", help="Enable mock authentication and JWT token validation."
     ),
-    routes: Optional[str] = typer.Option(
+    routes: str | None = typer.Option(
         None, "--routes", "-r", help="Path to JSON custom routes rewriter file."
+    ),
+    proxy: str | None = typer.Option(
+        None, "--proxy", help="Upstream target URL to proxy requests to."
+    ),
+    record: bool = typer.Option(
+        False, "--record", help="Record proxied GET responses into the local database store."
     ),
 ) -> None:
     """Starts the instant modern mock REST API server from a JSON database file."""
     # Determine file path
-    target_path: Optional[Path] = None
+    target_path: Path | None = None
     if db_file:
         target_path = Path(db_file)
     elif Path("db.json").exists():
@@ -207,6 +219,8 @@ def run_server(
         static_dir=static,
         enable_auth=auth,
         routes_file=routes,
+        proxy=proxy,
+        record=record,
     )
 
     # Auto-switch to available port if port is busy
@@ -229,6 +243,8 @@ def run_server(
         static_dir=static,
         auth=auth,
         routes=routes,
+        proxy=proxy,
+        record=record,
     )
 
     uvicorn.run(
@@ -245,16 +261,51 @@ def generate_command(
     output: str = typer.Option(
         "db.json", "--output", "-o", help="Target JSON file path."
     ),
-    schema: str = typer.Option(
-        "users:10,products:25,posts:50",
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Inline model definition (e.g. 'Patient:id,full_name:name,email:email').",
+    ),
+    schema: str | None = typer.Option(
+        None,
         "--schema",
         "-s",
-        help="Comma-separated entity:count schema definitions.",
+        help="Schema file path (JSON/YAML) or legacy entity:count definitions.",
+    ),
+    count: int = typer.Option(
+        10,
+        "--count",
+        "-c",
+        help="Number of records to generate per model (default: 10).",
     ),
 ) -> None:
-    """Generates a realistic synthetic JSON database using Faker."""
-    console.print(f"[cyan]Generating synthetic database with schema:[/cyan] [yellow]{schema}[/yellow]...")
-    db = generate_mock_database(schema_str=schema, output_path=output)
+    """Generates a realistic synthetic JSON database using inline models, schema files, or Faker templates."""
+    if model:
+        console.print(
+            f"[cyan]Generating synthetic database from inline model:[/cyan] [yellow]{model}[/yellow] (count: {count})..."
+        )
+        spec = parse_inline_model(model)
+        db = generate_from_schema(spec, count=count, output_path=output)
+    elif schema:
+        schema_path = Path(schema)
+        if schema_path.exists() or schema.endswith((".json", ".yaml", ".yml")):
+            console.print(
+                f"[cyan]Generating synthetic database from schema file:[/cyan] [yellow]{schema}[/yellow] (count: {count})..."
+            )
+            spec = parse_schema_file(schema)
+            db = generate_from_schema(spec, count=count, output_path=output)
+        else:
+            # Legacy format string: e.g. "users:10,products:25,posts:50"
+            console.print(f"[cyan]Generating synthetic database with schema:[/cyan] [yellow]{schema}[/yellow]...")
+            db = generate_mock_database(schema_str=schema, output_path=output)
+    else:
+        default_schema = "users:10,products:25,posts:50"
+        console.print(
+            f"[cyan]Generating synthetic database with default schema:[/cyan] [yellow]{default_schema}[/yellow]..."
+        )
+        db = generate_mock_database(schema_str=default_schema, output_path=output)
+
     total_records = sum(len(v) for v in db.values() if isinstance(v, list))
     console.print(
         f"✅ [bold green]Successfully generated[/bold green] [bold white]{output}[/bold white] "
@@ -266,11 +317,7 @@ def cli_entry():
     """Main CLI entrypoint routing default commands cleanly."""
     args = sys.argv[1:]
     # If no arguments, or first argument is not a known command and not a flag for help
-    if not args:
-        sys.argv.insert(1, "run")
-    elif args[0] not in KNOWN_COMMANDS and not args[0].startswith("-"):
-        sys.argv.insert(1, "run")
-    elif args[0].startswith("-") and args[0] not in {"--help", "-h", "--version"}:
+    if not args or args[0] not in KNOWN_COMMANDS and not args[0].startswith("-") or args[0].startswith("-") and args[0] not in {"--help", "-h", "--version"}:
         sys.argv.insert(1, "run")
 
     app()

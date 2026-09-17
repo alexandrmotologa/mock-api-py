@@ -1,8 +1,9 @@
 """Unit tests for DataStore CRUD, ID generation, atomic persistence, and read-only mode."""
 
 import json
-from pathlib import Path
+
 import pytest
+
 from mock_api_py.store import DataStore, ReadOnlyError
 
 
@@ -102,7 +103,7 @@ def test_atomic_persistence(tmp_path):
     store.create("items", {"name": "Second"})
 
     # Verify written to disk
-    with open(db_file, "r", encoding="utf-8") as f:
+    with open(db_file, encoding="utf-8") as f:
         saved = json.load(f)
     assert len(saved["items"]) == 2
     assert saved["items"][1]["name"] == "Second"

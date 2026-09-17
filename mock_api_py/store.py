@@ -8,12 +8,11 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 class ReadOnlyError(Exception):
     """Raised when an operation attempts to mutate a read-only store."""
-    pass
 
 
 class DataStore:
@@ -21,16 +20,16 @@ class DataStore:
 
     def __init__(
         self,
-        file_path: Optional[Union[str, Path]] = None,
-        initial_data: Optional[Dict[str, Any]] = None,
+        file_path: str | Path | None = None,
+        initial_data: dict[str, Any] | None = None,
         auto_save: bool = False,
         read_only: bool = False,
     ) -> None:
         self.file_path = Path(file_path) if file_path else None
         self.auto_save = auto_save
         self.read_only = read_only
-        self.data: Dict[str, Any] = {}
-        self.last_modified: Optional[float] = None
+        self.data: dict[str, Any] = {}
+        self.last_modified: float | None = None
 
         if initial_data is not None:
             self.data = copy.deepcopy(initial_data)
@@ -40,9 +39,9 @@ class DataStore:
             self.data = {}
 
         # Preserve the initial seed state for instant database resets
-        self.initial_snapshot: Dict[str, Any] = copy.deepcopy(self.data)
+        self.initial_snapshot: dict[str, Any] = copy.deepcopy(self.data)
 
-    def reset(self) -> Dict[str, Any]:
+    def reset(self) -> dict[str, Any]:
         """Resets the dataset back to its initial boot snapshot."""
         self.data = copy.deepcopy(self.initial_snapshot)
         if self.auto_save and not self.read_only and self.file_path:
@@ -53,7 +52,7 @@ class DataStore:
         """Loads data from the JSON file into memory."""
         if not self.file_path or not self.file_path.exists():
             return
-        with open(self.file_path, "r", encoding="utf-8") as f:
+        with open(self.file_path, encoding="utf-8") as f:
             self.data = json.load(f)
         self.last_modified = os.path.getmtime(self.file_path)
 
@@ -104,7 +103,7 @@ class DataStore:
         """Returns True if the resource key represents a singleton dictionary."""
         return isinstance(self.data.get(key), dict)
 
-    def get_collections(self) -> Dict[str, int]:
+    def get_collections(self) -> dict[str, int]:
         """Returns a mapping of collection names to their current item count."""
         return {
             k: len(v)
@@ -112,14 +111,14 @@ class DataStore:
             if isinstance(v, list)
         }
 
-    def get_singletons(self) -> List[str]:
+    def get_singletons(self) -> list[str]:
         """Returns a list of keys representing singleton objects."""
         return [
             k for k, v in self.data.items()
             if isinstance(v, dict)
         ]
 
-    def _generate_id(self, collection: str) -> Union[int, str]:
+    def _generate_id(self, collection: str) -> int | str:
         """Generates a new unique identifier based on the collection's existing IDs."""
         items = self.data.get(collection, [])
         if not items:
@@ -142,13 +141,13 @@ class DataStore:
         # Otherwise generate a UUID string
         return str(uuid.uuid4())
 
-    def get_all(self, collection: str) -> List[Dict[str, Any]]:
+    def get_all(self, collection: str) -> list[dict[str, Any]]:
         """Returns all items in a collection."""
         if not self.is_collection(collection):
             return []
         return copy.deepcopy(self.data[collection])
 
-    def get_by_id(self, collection: str, id_val: Any) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, collection: str, id_val: Any) -> dict[str, Any] | None:
         """Finds an item by its ID (coercing to string for comparison)."""
         if not self.is_collection(collection):
             return None
@@ -158,7 +157,7 @@ class DataStore:
                 return copy.deepcopy(item)
         return None
 
-    def create(self, collection: str, item_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create(self, collection: str, item_data: dict[str, Any]) -> dict[str, Any]:
         """Creates and appends a new item to a collection."""
         if self.read_only:
             raise ReadOnlyError("Store is in read-only mode")
@@ -182,9 +181,9 @@ class DataStore:
         self,
         collection: str,
         id_val: Any,
-        item_data: Dict[str, Any],
+        item_data: dict[str, Any],
         partial: bool = False,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Updates an existing item (PUT or PATCH)."""
         if self.read_only:
             raise ReadOnlyError("Store is in read-only mode")
@@ -213,7 +212,7 @@ class DataStore:
 
         return None
 
-    def delete(self, collection: str, id_val: Any) -> Optional[Dict[str, Any]]:
+    def delete(self, collection: str, id_val: Any) -> dict[str, Any] | None:
         """Deletes an item by ID from a collection."""
         if self.read_only:
             raise ReadOnlyError("Store is in read-only mode")
@@ -232,7 +231,7 @@ class DataStore:
 
         return None
 
-    def get_singleton(self, key: str) -> Optional[Dict[str, Any]]:
+    def get_singleton(self, key: str) -> dict[str, Any] | None:
         """Retrieves a singleton dictionary resource."""
         val = self.data.get(key)
         if isinstance(val, dict):
@@ -240,8 +239,8 @@ class DataStore:
         return None
 
     def update_singleton(
-        self, key: str, data: Dict[str, Any], partial: bool = False
-    ) -> Optional[Dict[str, Any]]:
+        self, key: str, data: dict[str, Any], partial: bool = False
+    ) -> dict[str, Any] | None:
         """Updates a singleton resource (PUT or PATCH)."""
         if self.read_only:
             raise ReadOnlyError("Store is in read-only mode")

@@ -1,6 +1,7 @@
 """End-to-end API tests for dynamic routes, singletons, nested routes, and middlewares."""
 
 import time
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 

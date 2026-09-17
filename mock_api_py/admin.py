@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-
-from mock_api_py.store import DataStore
 
 
 def get_admin_html() -> str:

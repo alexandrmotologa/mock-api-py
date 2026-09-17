@@ -1,6 +1,7 @@
 import json
-from pathlib import Path
+
 from typer.testing import CliRunner
+
 from mock_api_py.cli import app, find_available_port
 
 runner = CliRunner()
@@ -15,7 +16,7 @@ def test_auto_create_missing_db_file(tmp_path):
     assert result.exit_code == 0
     assert target.exists()
 
-    with open(target, "r", encoding="utf-8") as f:
+    with open(target, encoding="utf-8") as f:
         data = json.load(f)
     assert "users" in data
     assert len(data["users"]) == 2
