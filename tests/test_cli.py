@@ -1,4 +1,5 @@
 import json
+import re
 
 from typer.testing import CliRunner
 
@@ -67,7 +68,8 @@ def test_cli_import_command(tmp_path):
 def test_cli_run_help_options():
     result = runner.invoke(app, ["run", "--help"])
     assert result.exit_code == 0
-    assert "--fixtures" in result.output
-    assert "--scenario" in result.output
-    assert "--stream-interval" in result.output
+    clean_output = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", result.output)
+    assert "--fixtures" in clean_output
+    assert "--scenario" in clean_output
+    assert "--stream-interval" in clean_output
 
