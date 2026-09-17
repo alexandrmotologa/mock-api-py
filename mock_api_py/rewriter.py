@@ -1,14 +1,15 @@
-"""Custom URL rewriting middleware supporting wildcards, parameters, and query rewrites."""
+"""Custom URL rewriting and targeted route mocking middleware supporting wildcards, parameters, query rewrites, and mocked HTTP responses."""
 
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 
 class RewriteRule:
@@ -56,14 +57,42 @@ class RewriteRule:
         return rewritten_path, self.target_query
 
 
-class URLRewriter:
-    """Manages a list of RewriteRules loaded from dict or JSON file."""
+class MockResponseRule:
+    """Represents a rule that directly intercepts and responds with a mocked HTTP response."""
 
-    def __init__(self, rules: dict[str, str] | None = None) -> None:
+    def __init__(self, source_pattern: str, response_spec: dict[str, Any]) -> None:
+        self.source_raw = source_pattern
+        self.status_code = int(response_spec.get("status", 200))
+        self.body = response_spec.get("body", {})
+        self.headers = response_spec.get("headers", {})
+        self.method = response_spec.get("method")  # e.g., "GET", "POST", or None for all
+
+        # Compile regex pattern identical to RewriteRule
+        regex_str = "^" + re.escape(self.source_raw) + "$"
+        regex_str = regex_str.replace(r"\*", r"(.*)")
+        regex_str = re.sub(r":([a-zA-Z0-9_]+)", r"([^/]+)", regex_str)
+        self.regex = re.compile(regex_str)
+
+    def matches(self, path: str, method: str) -> bool:
+        """Checks whether the incoming path and HTTP method match this mock rule."""
+        if self.method and self.method.upper() != method.upper():
+            return False
+        return bool(self.regex.match(path))
+
+
+class URLRewriter:
+    """Manages a list of RewriteRules and MockResponseRules loaded from dict or JSON file."""
+
+    def __init__(self, rules: dict[str, Any] | None = None) -> None:
         self.rules: list[RewriteRule] = []
+        self.mock_rules: list[MockResponseRule] = []
         if rules:
             for src, tgt in rules.items():
-                self.rules.append(RewriteRule(src, tgt))
+                if isinstance(tgt, dict):
+                    self.mock_rules.append(MockResponseRule(src, tgt))
+                elif isinstance(tgt, str):
+                    rule = RewriteRule(src, tgt)
+                    self.rules.append(rule)
 
     @classmethod
     def from_file(cls, file_path: str | Path) -> URLRewriter:
@@ -73,6 +102,13 @@ class URLRewriter:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return cls(data if isinstance(data, dict) else {})
+
+    def get_mock_response(self, path: str, method: str) -> MockResponseRule | None:
+        """Finds the first matching mock response rule for the given path and method."""
+        for rule in self.mock_rules:
+            if rule.matches(path, method):
+                return rule
+        return None
 
     def rewrite(self, path: str) -> tuple[str, str | None]:
         """Applies the first matching rewrite rule. Returns (new_path, optional_query)."""
@@ -84,7 +120,7 @@ class URLRewriter:
 
 
 class URLRewriterMiddleware(BaseHTTPMiddleware):
-    """ASGI Middleware modifying request path/query_string before route resolution."""
+    """ASGI Middleware modifying request path/query_string or short-circuiting with mock responses."""
 
     def __init__(self, app, rewriter: URLRewriter) -> None:
         super().__init__(app)
@@ -92,6 +128,28 @@ class URLRewriterMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         orig_path = request.scope.get("path", "")
+        method = request.method
+
+        # 1. Check for targeted mock response override
+        mock_rule = self.rewriter.get_mock_response(orig_path, method)
+        if mock_rule is not None:
+            headers = dict(mock_rule.headers) if mock_rule.headers else {}
+            if isinstance(mock_rule.body, str):
+                content_type = headers.get("content-type") or headers.get("Content-Type")
+                if content_type and "json" not in content_type.lower():
+                    return Response(
+                        content=mock_rule.body,
+                        status_code=mock_rule.status_code,
+                        headers=headers,
+                        media_type=content_type,
+                    )
+            return JSONResponse(
+                status_code=mock_rule.status_code,
+                content=mock_rule.body,
+                headers=headers,
+            )
+
+        # 2. Check for URL rewrite
         new_path, extra_query = self.rewriter.rewrite(orig_path)
 
         if new_path != orig_path:

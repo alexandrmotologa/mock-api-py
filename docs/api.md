@@ -278,3 +278,129 @@ fastmock --proxy https://api.github.com --record --save recorded_db.json
 * **Automatic Ingestion**: Successful `GET` responses containing JSON objects or lists are parsed and stored in collections matching the URL path (e.g. `/v1/charges` records into collection `charges`).
 * **Offline Replay**: Combined with `--save`, captured data persists to disk so you can subsequently boot `fastmock recorded_db.json` in offline mode.
 
+---
+
+## 12. OpenAPI & Swagger Importer (`fastmock import`)
+
+Parse existing OpenAPI 3.0 / 3.1 or Swagger 2.0 specifications (JSON or YAML) and automatically generate cohesive mock databases:
+
+```bash
+fastmock import openapi.yaml --output db.json --count 20
+```
+
+* **Schema Introspection**: Discovers models from `components.schemas` (OpenAPI 3.x) or `definitions` (Swagger 2.0).
+* **Reference Resolution**: Resolves `$ref` pointers across schemas and object properties.
+* **Smart Data Synthesis**: Formats strings (dates, emails, UUIDs, URIs), handles integer/number bounds (minimum, maximum), and automatically maps foreign keys for nested relational linking.
+
+---
+
+## 13. Scenario & Fixtures State Management
+
+Simulate various backend states (e.g. empty collections, blocked accounts, populated databases) for end-to-end integration testing:
+
+```bash
+fastmock db.json --fixtures ./tests/fixtures --scenario default
+```
+
+### Endpoints
+
+#### List Available Scenarios
+```http
+GET /_scenarios
+```
+Response:
+```json
+{
+  "active": "default",
+  "available": ["default", "empty_state", "blocked_user", "heavy_traffic"]
+}
+```
+
+#### Switch Active Scenario
+```http
+POST /_scenario/{name}
+```
+Response:
+```json
+{
+  "message": "Switched to scenario 'empty_state' successfully",
+  "active": "empty_state",
+  "resources": {
+    "users": 0,
+    "orders": 0
+  }
+}
+```
+
+#### Reset Active Scenario
+```http
+POST /_reset
+```
+Reverts the active in-memory dataset back to its scenario boot snapshot.
+
+---
+
+## 14. Targeted Route Mocking (`routes.json`)
+
+Define custom HTTP responses for specific endpoints to test error scenarios and custom API contracts directly in `routes.json`:
+
+```json
+{
+  "/api/*": "/$1",
+  "/billing/checkout": {
+    "status": 402,
+    "body": {
+      "error": "Payment Required",
+      "code": "CARD_DECLINED"
+    },
+    "headers": {
+      "X-Custom-RateLimit": "100"
+    }
+  },
+  "/auth/token": {
+    "method": "POST",
+    "status": 401,
+    "body": {
+      "message": "Invalid client secret"
+    }
+  }
+}
+```
+
+* **Method Filtering**: Specify `"method": "POST"` to intercept only specific HTTP verbs, letting other methods fall through.
+* **Custom Status Codes**: Simulate `401`, `402`, `429`, `503`, etc. without writing server code.
+* **Immediate Response**: Mock rules short-circuit before hitting datastore collections or database operations.
+
+---
+
+## 15. Server-Sent Events (SSE) Real-Time Streaming
+
+Subscribe to live datastore mutations or synthetic heartbeats via native HTTP Server-Sent Events (`EventSource`):
+
+### Global Event Stream
+```http
+GET /events
+```
+Streams all mutations across all collections. Supported event types:
+* `connected`: Sent immediately upon establishing connection.
+* `create`: Triggered when an item is created (`POST /{collection}`).
+* `update`: Triggered when an item is updated (`PUT /{collection}/{id}`).
+* `patch`: Triggered when an item is partially updated (`PATCH /{collection}/{id}`).
+* `delete`: Triggered when an item is removed (`DELETE /{collection}/{id}`).
+* `scenario_change`: Triggered when `POST /_scenario/{name}` is invoked.
+* `reset`: Triggered when `POST /_reset` is invoked.
+* `tick`: Emitted periodically when `--stream-interval <seconds>` is active.
+
+### Scoped Collection Stream
+```http
+GET /{collection}/_stream
+```
+Streams only the mutation events relevant to the specified collection (e.g. `GET /orders/_stream`).
+
+### Query Parameters
+* `limit=N`: Automatically terminates and closes the HTTP stream after emitting `N` events. Ideal for automated testing, Playwright checks, and curl scripts:
+  ```bash
+  curl -N "http://localhost:8000/events?limit=1"
+  ```
+
+

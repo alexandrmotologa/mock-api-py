@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 class ReadOnlyError(Exception):
     """Raised when an operation attempts to mutate a read-only store."""
@@ -24,6 +26,8 @@ class DataStore:
         initial_data: dict[str, Any] | None = None,
         auto_save: bool = False,
         read_only: bool = False,
+        fixtures_dir: str | Path | None = None,
+        initial_scenario: str | None = None,
     ) -> None:
         self.file_path = Path(file_path) if file_path else None
         self.auto_save = auto_save
@@ -31,7 +35,16 @@ class DataStore:
         self.data: dict[str, Any] = {}
         self.last_modified: float | None = None
 
-        if initial_data is not None:
+        self.fixtures_dir = Path(fixtures_dir) if fixtures_dir else None
+        self.scenarios: dict[str, dict[str, Any]] = {}
+        self.active_scenario: str | None = None
+
+        if self.fixtures_dir and self.fixtures_dir.exists():
+            self.load_fixtures_from_directory(self.fixtures_dir)
+
+        if initial_scenario and initial_scenario in self.scenarios:
+            self.load_scenario(initial_scenario)
+        elif initial_data is not None:
             self.data = copy.deepcopy(initial_data)
         elif self.file_path and self.file_path.exists():
             self.load()
@@ -41,9 +54,49 @@ class DataStore:
         # Preserve the initial seed state for instant database resets
         self.initial_snapshot: dict[str, Any] = copy.deepcopy(self.data)
 
+    def load_fixtures_from_directory(self, dir_path: str | Path) -> None:
+        """Scans a directory for JSON and YAML fixture files and registers scenarios."""
+        p = Path(dir_path)
+        if not p.exists() or not p.is_dir():
+            return
+
+        for f_path in p.iterdir():
+            if f_path.is_file() and f_path.suffix.lower() in {".json", ".yaml", ".yml"}:
+                scenario_name = f_path.stem
+                try:
+                    with open(f_path, encoding="utf-8") as f:
+                        if f_path.suffix.lower() in {".yaml", ".yml"}:
+                            content = yaml.safe_load(f)
+                        else:
+                            content = json.load(f)
+                    if isinstance(content, dict):
+                        self.scenarios[scenario_name] = content
+                except Exception:
+                    pass
+
+    def get_available_scenarios(self) -> list[str]:
+        """Returns the list of all registered scenario names."""
+        return sorted(list(self.scenarios.keys()))
+
+    def load_scenario(self, name: str) -> dict[str, Any]:
+        """Swaps the active in-memory dataset to a registered scenario fixture."""
+        if name not in self.scenarios:
+            raise KeyError(
+                f"Scenario '{name}' not found. Available scenarios: {self.get_available_scenarios()}"
+            )
+
+        self.data = copy.deepcopy(self.scenarios[name])
+        self.active_scenario = name
+        if self.auto_save and not self.read_only and self.file_path:
+            self.save()
+        return copy.deepcopy(self.data)
+
     def reset(self) -> dict[str, Any]:
-        """Resets the dataset back to its initial boot snapshot."""
-        self.data = copy.deepcopy(self.initial_snapshot)
+        """Resets the dataset back to its initial boot snapshot or active scenario snapshot."""
+        if self.active_scenario and self.active_scenario in self.scenarios:
+            self.data = copy.deepcopy(self.scenarios[self.active_scenario])
+        else:
+            self.data = copy.deepcopy(self.initial_snapshot)
         if self.auto_save and not self.read_only and self.file_path:
             self.save()
         return copy.deepcopy(self.data)
@@ -111,12 +164,32 @@ class DataStore:
             if isinstance(v, list)
         }
 
+    def get_known_collections(self) -> list[str]:
+        """Returns all collection names present in active data or any loaded scenario fixture."""
+        cols = set(self.get_collections().keys())
+        for fix_data in self.scenarios.values():
+            if isinstance(fix_data, dict):
+                for k, v in fix_data.items():
+                    if isinstance(v, list):
+                        cols.add(k)
+        return sorted(cols)
+
     def get_singletons(self) -> list[str]:
         """Returns a list of keys representing singleton objects."""
         return [
             k for k, v in self.data.items()
             if isinstance(v, dict)
         ]
+
+    def get_known_singletons(self) -> list[str]:
+        """Returns all singleton keys present in active data or any loaded scenario fixture."""
+        sings = set(self.get_singletons())
+        for fix_data in self.scenarios.values():
+            if isinstance(fix_data, dict):
+                for k, v in fix_data.items():
+                    if isinstance(v, dict):
+                        sings.add(k)
+        return sorted(sings)
 
     def _generate_id(self, collection: str) -> int | str:
         """Generates a new unique identifier based on the collection's existing IDs."""

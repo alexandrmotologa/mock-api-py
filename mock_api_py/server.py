@@ -8,10 +8,12 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from rich.console import Console
+from starlette.responses import StreamingResponse
 from starlette.staticfiles import StaticFiles
 
 from mock_api_py.admin import create_admin_router
 from mock_api_py.auth import DEFAULT_SECRET, AuthMiddleware, create_auth_router
+from mock_api_py.events import EventBroadcaster, format_sse
 from mock_api_py.middleware import (
     ChaosErrorMiddleware,
     DelayInjectorMiddleware,
@@ -40,12 +42,18 @@ def create_app(
     proxy: str | None = None,
     record: bool = False,
     proxy_client: Any = None,
+    stream_interval: float = 0.0,
+    broadcaster: EventBroadcaster | None = None,
 ) -> FastAPI:
     """Creates and configures a FastAPI instance with all dynamic routes and middlewares."""
+    if broadcaster is None:
+        broadcaster = EventBroadcaster()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         watch_task = None
+        ticker_task = None
+
         if watch and store.file_path:
             async def _watch_loop():
                 while True:
@@ -63,11 +71,34 @@ def create_app(
 
             watch_task = asyncio.create_task(_watch_loop())
 
+        if stream_interval > 0:
+            async def _ticker_loop():
+                tick_count = 0
+                while True:
+                    try:
+                        await asyncio.sleep(stream_interval)
+                        tick_count += 1
+                        await broadcaster.publish(
+                            event="tick",
+                            data={
+                                "count": tick_count,
+                                "timestamp": time.time(),
+                            },
+                        )
+                    except asyncio.CancelledError:
+                        break
+                    except Exception:
+                        pass
+
+            ticker_task = asyncio.create_task(_ticker_loop())
+
         try:
             yield
         finally:
             if watch_task:
                 watch_task.cancel()
+            if ticker_task:
+                ticker_task.cancel()
 
     app = FastAPI(
         title="mock-api-py",
@@ -119,14 +150,92 @@ def create_app(
         auth_router = create_auth_router(store, secret=jwt_secret)
         app.include_router(auth_router)
 
-    router = create_mock_router(store)
+    # 4. Real-time Server-Sent Events (SSE) Routes (Mounted before dynamic collection router to prevent /{col}/{id} collisions)
+    @app.get("/events", tags=["Realtime"], summary="Subscribe to real-time events across all collections (SSE)")
+    async def sse_events(limit: int | None = None):
+        q = broadcaster.subscribe()
+
+        async def event_generator():
+            sent = 0
+            try:
+                yield format_sse({"connected": True, "time": time.time()}, event="connected")
+                sent += 1
+                if limit is not None and sent >= limit:
+                    return
+
+                while True:
+                    try:
+                        msg = await asyncio.wait_for(q.get(), timeout=1.0)
+                        yield format_sse(msg["data"], event=msg.get("event"), event_id=msg.get("id"))
+                        sent += 1
+                        if limit is not None and sent >= limit:
+                            return
+                    except TimeoutError:
+                        yield ": ping\n\n"
+            except asyncio.CancelledError:
+                pass
+            finally:
+                broadcaster.unsubscribe(q)
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @app.get(
+        "/{collection}/_stream",
+        tags=["Realtime"],
+        summary="Subscribe to real-time events for a specific collection (SSE)",
+    )
+    async def sse_collection(collection: str, limit: int | None = None):
+        q = broadcaster.subscribe()
+
+        async def event_generator():
+            sent = 0
+            try:
+                yield format_sse({"connected": True, "collection": collection}, event="connected")
+                sent += 1
+                if limit is not None and sent >= limit:
+                    return
+
+                while True:
+                    try:
+                        msg = await asyncio.wait_for(q.get(), timeout=1.0)
+                        if msg.get("collection") is None or msg.get("collection") == collection:
+                            yield format_sse(msg["data"], event=msg.get("event"), event_id=msg.get("id"))
+                            sent += 1
+                            if limit is not None and sent >= limit:
+                                return
+                    except TimeoutError:
+                        yield ": ping\n\n"
+            except asyncio.CancelledError:
+                pass
+            finally:
+                broadcaster.unsubscribe(q)
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    router = create_mock_router(store, broadcaster=broadcaster)
     app.include_router(router)
 
-    # 4. Embedded Web Admin Dashboard
+    # 5. Embedded Web Admin Dashboard
     admin_router = create_admin_router()
     app.include_router(admin_router)
 
-    # 5. File Uploads Directory & Mounting
+    # 6. File Uploads Directory & Mounting
     uploads_path = Path(upload_dir)
     uploads_path.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
@@ -154,40 +263,88 @@ def create_app(
             "contentType": file.content_type,
         }
 
-    # 6. Database Reset Endpoint
+    # 7. Database Reset Endpoint
     @app.post("/_reset", tags=["System"], summary="Reset database to initial boot state")
     async def reset_database():
         store.reset()
+        await broadcaster.publish(
+            event="reset",
+            data={
+                "message": "Database reset to initial boot snapshot",
+                "active_scenario": store.active_scenario,
+                "timestamp": time.time(),
+            },
+        )
         return {
             "message": "Database reset to initial boot snapshot successfully",
             "resources": store.get_collections(),
         }
 
-    # 7. TypeScript Definitions Endpoint
+    # 8. Scenario Fixtures Endpoints
+    @app.get("/_scenarios", tags=["System"], summary="List available test fixture scenarios")
+    async def get_scenarios():
+        return {
+            "active": store.active_scenario,
+            "available": store.get_available_scenarios(),
+        }
+
+    @app.post(
+        "/_scenario/{name}",
+        tags=["System"],
+        summary="Switch active mock dataset to a scenario fixture",
+    )
+    async def set_scenario(name: str):
+        try:
+            store.load_scenario(name)
+            await broadcaster.publish(
+                event="scenario_change",
+                data={
+                    "active": name,
+                    "resources": store.get_collections(),
+                    "timestamp": time.time(),
+                },
+            )
+            return {
+                "message": f"Switched to scenario '{name}' successfully",
+                "active": name,
+                "resources": store.get_collections(),
+            }
+        except KeyError:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=404,
+                detail=f"Scenario '{name}' not found. Available: {store.get_available_scenarios()}",
+            )
+
+    # 9. TypeScript Definitions Endpoint
     @app.get("/_types", tags=["System"], summary="Generate TypeScript interfaces for data")
     async def get_typescript_types():
         ts_code = generate_typescript_definitions(store)
         return PlainTextResponse(content=ts_code, media_type="text/plain; charset=utf-8")
 
-    # 8. Static Files Mount (optional)
+    # 10. Static Files Mount (optional)
     if static_dir:
         static_path = Path(static_dir)
         if static_path.exists():
             app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
-    # 9. Root Endpoint with System Overview
+    # 11. Root Endpoint with System Overview
     @app.get("/", tags=["System"], summary="API Root Overview")
     async def root_overview():
         return {
             "name": "mock-api-py",
-            "version": "0.1.0",
+            "version": "0.1.2",
             "documentation": "/docs",
             "admin_dashboard": "/_admin",
             "typescript_types": "/_types",
+            "events_stream": "/events",
             "upload_endpoint": "/upload",
             "auth_enabled": enable_auth,
             "proxy_enabled": bool(proxy),
             "record_enabled": record,
+            "active_scenario": store.active_scenario,
+            "available_scenarios": store.get_available_scenarios(),
             "resources": {
                 "collections": store.get_collections(),
                 "singletons": store.get_singletons(),

@@ -25,6 +25,7 @@ from rich.text import Text
 
 from mock_api_py import __version__
 from mock_api_py.generator import generate_from_schema, generate_mock_database
+from mock_api_py.openapi_importer import import_openapi_spec
 from mock_api_py.schema_parser import parse_inline_model, parse_schema_file
 from mock_api_py.server import create_app
 from mock_api_py.store import DataStore
@@ -63,6 +64,7 @@ def print_banner(
     routes: str | None = None,
     proxy: str | None = None,
     record: bool = False,
+    stream_interval: float = 0.0,
 ) -> None:
     """Renders the aesthetic Rich startup banner and resource overview."""
     banner_text = Text()
@@ -83,6 +85,7 @@ def print_banner(
     console.print(f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan]    [underline cyan]{base_url}/_admin[/underline cyan]")
     console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]     [underline cyan]{base_url}/docs[/underline cyan]")
     console.print(f" 📘 [bold blue]TypeScript Definitions:[/bold blue]   [underline cyan]{base_url}/_types[/underline cyan]")
+    console.print(f" 📡 [bold cyan]Real-time Stream (SSE):[/bold cyan]  [underline cyan]{base_url}/events[/underline cyan]")
     console.print(f" 📤 [bold green]File Upload Endpoint:[/bold green]     [underline cyan]{base_url}/upload[/underline cyan]")
 
     status_parts = []
@@ -98,6 +101,10 @@ def print_banner(
         status_parts.append("👀 Watch: [bold green]ON[/bold green]")
     if auth:
         status_parts.append("🛡️  Auth: [bold green]JWT Active[/bold green]")
+    if store.scenarios:
+        status_parts.append(f"🎭 Scenarios: [bold cyan]{len(store.scenarios)} loaded[/bold cyan]")
+    if stream_interval > 0:
+        status_parts.append(f"⏱️  SSE Ticker: [bold yellow]{stream_interval}s[/bold yellow]")
     if read_only:
         status_parts.append("🔒 Mode: [bold red]Read-Only[/bold red]")
     else:
@@ -121,7 +128,7 @@ def print_banner(
     console.print()
 
 
-KNOWN_COMMANDS = {"generate", "run", "--help", "-h", "--version", "-v"}
+KNOWN_COMMANDS = {"generate", "import", "run", "--help", "-h", "--version", "-v"}
 
 
 @app.command(name="run")
@@ -161,6 +168,15 @@ def run_server(
     ),
     record: bool = typer.Option(
         False, "--record", help="Record proxied GET responses into the local database store."
+    ),
+    fixtures: str | None = typer.Option(
+        None, "--fixtures", help="Directory containing test fixture scenarios (JSON/YAML)."
+    ),
+    scenario: str | None = typer.Option(
+        None, "--scenario", help="Initial test fixture scenario name to activate on startup."
+    ),
+    stream_interval: float = typer.Option(
+        0.0, "--stream-interval", help="Periodic SSE tick emission interval in seconds (0 = disabled)."
     ),
 ) -> None:
     """Starts the instant modern mock REST API server from a JSON database file."""
@@ -208,7 +224,15 @@ def run_server(
         initial_data=initial_data,
         auto_save=save,
         read_only=read_only,
+        fixtures_dir=fixtures,
     )
+
+    if scenario:
+        try:
+            store.load_scenario(scenario)
+            console.print(f"🎭 [bold green]Active Scenario initialized to:[/bold green] [bold cyan]{scenario}[/bold cyan]")
+        except KeyError as e:
+            console.print(f"⚠️  [bold yellow]Warning:[/bold yellow] {e}")
 
     fastapi_app = create_app(
         store=store,
@@ -221,6 +245,7 @@ def run_server(
         routes_file=routes,
         proxy=proxy,
         record=record,
+        stream_interval=stream_interval,
     )
 
     # Auto-switch to available port if port is busy
@@ -245,6 +270,7 @@ def run_server(
         routes=routes,
         proxy=proxy,
         record=record,
+        stream_interval=stream_interval,
     )
 
     uvicorn.run(
@@ -253,6 +279,22 @@ def run_server(
         port=actual_port,
         log_level="warning",
         access_log=False,
+    )
+
+
+@app.command(name="import")
+def import_command(
+    spec_path: str = typer.Argument(..., help="Path to OpenAPI / Swagger spec file (JSON or YAML)."),
+    output: str = typer.Option("db.json", "--output", "-o", help="Target output JSON file path."),
+    count: int = typer.Option(10, "--count", "-c", help="Number of records to generate per resource."),
+) -> None:
+    """Imports an OpenAPI 3.x or Swagger 2.0 specification and generates realistic mock datasets."""
+    console.print(f"[cyan]Parsing OpenAPI / Swagger specification:[/cyan] [yellow]{spec_path}[/yellow]...")
+    db = import_openapi_spec(spec_path, count=count, output_path=output)
+    total_records = sum(len(v) for v in db.values() if isinstance(v, list))
+    console.print(
+        f"✅ [bold green]Successfully imported OpenAPI spec into[/bold green] [bold white]{output}[/bold white] "
+        f"with [bold cyan]{total_records}[/bold cyan] items across [bold]{len(db)}[/bold] resources!"
     )
 
 

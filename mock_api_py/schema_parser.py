@@ -201,6 +201,10 @@ def _convert_json_schema_property(prop_name: str, prop_def: dict[str, Any]) -> F
     if "faker" in prop_def:
         return FieldSpec(name=prop_name, type_name=str(prop_def["faker"]).lower())
 
+    lower_name = prop_name.lower()
+    if lower_name == "id":
+        return FieldSpec(name=prop_name, type_name="id")
+
     schema_format = prop_def.get("format", "").lower()
     if schema_format in {"email", "date", "date-time", "uuid", "uri", "hostname", "ipv4"}:
         mapped = "date" if schema_format == "date-time" else schema_format
@@ -219,9 +223,6 @@ def _convert_json_schema_property(prop_name: str, prop_def: dict[str, Any]) -> F
         return FieldSpec(name=prop_name, type_name="boolean")
 
     # Name-based heuristic mapping for strings
-    lower_name = prop_name.lower()
-    if lower_name == "id":
-        return FieldSpec(name=prop_name, type_name="id")
     if "email" in lower_name:
         return FieldSpec(name=prop_name, type_name="email")
     if any(k in lower_name for k in ("name", "full_name", "firstname", "lastname")):

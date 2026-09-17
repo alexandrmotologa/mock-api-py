@@ -32,3 +32,42 @@ def test_find_available_port():
         next_port = find_available_port("127.0.0.1", busy_port)
         assert next_port != busy_port
         assert next_port > busy_port
+
+
+def test_cli_import_command(tmp_path):
+    spec_file = tmp_path / "openapi.json"
+    spec_data = {
+        "openapi": "3.0.0",
+        "info": {"title": "Test API", "version": "1.0.0"},
+        "components": {
+            "schemas": {
+                "Category": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "name": {"type": "string"},
+                    },
+                }
+            }
+        },
+    }
+    spec_file.write_text(json.dumps(spec_data), encoding="utf-8")
+
+    out_file = tmp_path / "imported.json"
+    result = runner.invoke(app, ["import", str(spec_file), "--output", str(out_file), "--count", "4"])
+    assert result.exit_code == 0
+    assert out_file.exists()
+
+    with open(out_file, encoding="utf-8") as f:
+        data = json.load(f)
+    assert "categories" in data
+    assert len(data["categories"]) == 4
+
+
+def test_cli_run_help_options():
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--fixtures" in result.output
+    assert "--scenario" in result.output
+    assert "--stream-interval" in result.output
+

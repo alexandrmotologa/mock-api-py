@@ -21,6 +21,10 @@
 
 - **FastAPI and ASGI engine**: Runs on Uvicorn with asynchronous I/O.
 - **OpenAPI documentation**: Interactive Swagger UI at `/docs` and ReDoc at `/redoc`.
+- **OpenAPI & Swagger spec importer**: Instantly generate realistic mock datasets directly from OpenAPI 3.x / Swagger 2.0 files (`fastmock import`).
+- **Scenario & fixtures state management**: Swap between predefined mock state snapshots on the fly for E2E testing (`--fixtures`, `POST /_scenario/{name}`, `GET /_scenarios`).
+- **Targeted route mocking**: Intercept specific endpoints with custom status codes (401, 402, 429), headers, and payloads defined in `routes.json`.
+- **Server-Sent Events (SSE) real-time streaming**: Stream live datastore mutations (`/events`, `/{col}/_stream`) and periodic synthetic updates (`--stream-interval`) to `EventSource` clients.
 - **Terminal dashboard**: Displays detected resource routes and colored HTTP request logs via Rich.
 - **Chaos testing**: Configurable latency jitter (`--delay 200-800`) and random 500 error injection (`--error-rate 0.1`).
 - **Query engine**: Supports exact filtering, comparisons (`_gt`, `_gte`, `_lt`, `_lte`, `_ne`), substring matching (`_like`), full-text search (`q=`), sorting (`_sort`, `_order`), and pagination (`_page`, `_limit`) with `X-Total-Count` and RFC `Link` headers.
@@ -258,9 +262,9 @@ When `--auth` is enabled:
    - `POST /auth/register` with `{"name": "Charlie", "email": "charlie@example.com"}`
    - `GET /auth/me` with `Authorization: Bearer <token>`
 
-## Custom route rewrites
+## Custom route rewrites and targeted mocking
 
-To rewrite paths or map legacy URLs, pass a `routes.json` file:
+To rewrite paths or directly intercept endpoints with mocked HTTP responses, pass a `routes.json` file:
 
 ```bash
 mock-api db.json --routes routes.json
@@ -271,14 +275,77 @@ mock-api db.json --routes routes.json
 {
   "/api/*": "/$1",
   "/articles/:id": "/posts/:id",
-  "/top-products": "/products?_sort=price&_order=desc"
+  "/top-products": "/products?_sort=price&_order=desc",
+  "/billing/checkout": {
+    "status": 402,
+    "body": {"error": "Payment Required", "code": "CARD_DECLINED"},
+    "headers": {"X-Mock-Engine": "fastmock"}
+  },
+  "/auth/token": {
+    "method": "POST",
+    "status": 401,
+    "body": {"message": "Invalid API key"}
+  }
 }
 ```
 
-Mapped requests:
-- `GET /api/users` routes to `GET /users`
-- `GET /articles/42` routes to `GET /posts/42`
-- `GET /top-products` routes to `GET /products?_sort=price&_order=desc`
+Capabilities:
+- **Wildcard / param rewrites**: `GET /api/users` routes to `/users`; `GET /articles/42` routes to `/posts/42`.
+- **Query appends**: `GET /top-products` routes to `/products?_sort=price&_order=desc`.
+- **Targeted mock responses**: Intercept specific routes to test edge cases (`401 Unauthorized`, `402 Payment Required`, `429 Rate Limited`, etc.) returning custom JSON payloads and headers immediately without hitting the datastore.
+
+## Scenario & fixtures state management (E2E testing)
+
+Switch database states instantly during end-to-end testing (Playwright, Cypress, Vitest) without restarting the server:
+
+```bash
+# Start server with a directory of scenario fixtures
+fastmock db.json --fixtures ./tests/fixtures --scenario default
+```
+
+Fixture files in `./tests/fixtures/` (e.g. `empty_state.json`, `blocked_user.yaml`, `active_state.json`) become instantly swappable scenarios.
+
+### HTTP Scenario Switching
+- `GET /_scenarios`: Returns the currently active scenario and list of all available scenarios.
+- `POST /_scenario/{name}`: Swaps the entire in-memory dataset to the target scenario snapshot.
+- `POST /_reset`: Reverts back to the initial scenario snapshot.
+
+```javascript
+// Example Playwright test step
+test('shows empty state illustration when user has no orders', async ({ page, request }) => {
+  await request.post('http://localhost:8000/_scenario/empty_state');
+  await page.goto('http://localhost:3000/orders');
+  await expect(page.locator('.empty-illustration')).toBeVisible();
+});
+```
+
+## Real-time Server-Sent Events (SSE)
+
+Frontends can subscribe to live data mutations and ticker updates over native HTTP Server-Sent Events (`EventSource`) without polling:
+
+```bash
+# Start server with an optional 2-second background synthetic ticker
+fastmock db.json --stream-interval 2.0
+```
+
+### SSE Endpoints
+- `GET /events`: Streams all mutations across all collections (`event: create | update | patch | delete | reset`).
+- `GET /{collection}/_stream`: Streams changes specifically scoped to the given collection (e.g. `/orders/_stream`).
+- Optional `?limit=N`: Closes the stream after receiving `N` events (ideal for automated CI scripts and test runners).
+
+```javascript
+// Browser / React EventSource listener
+const events = new EventSource('http://localhost:8000/events');
+
+events.addEventListener('create', (e) => {
+  const { collection, item } = JSON.parse(e.data);
+  console.log(`New record created in ${collection}:`, item);
+});
+
+events.addEventListener('tick', (e) => {
+  console.log('Periodic heartbeat tick:', JSON.parse(e.data));
+});
+```
 
 ## Chaos testing
 
@@ -332,7 +399,18 @@ Generate mock data from a JSON Schema or YAML model file:
 fastmock generate --schema schema.json --count 50 --output db.json
 ```
 
-### 3. Template shortcuts
+### 3. OpenAPI / Swagger spec importer
+Directly import OpenAPI 3.0, 3.1, or Swagger 2.0 specifications (JSON or YAML) and turn schemas into rich mock data:
+
+```bash
+# Import Petstore or corporate API spec directly into a mock database
+fastmock import petstore.yaml --output db.json --count 25
+
+# Then start the mock server immediately
+fastmock db.json
+```
+
+### 4. Template shortcuts
 ```bash
 mock-api generate --output data.json --schema "users:20,products:50,posts:30,comments:100"
 ```

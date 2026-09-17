@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
+from mock_api_py.events import EventBroadcaster
 from mock_api_py.query_engine import execute_query
 from mock_api_py.store import DataStore, ReadOnlyError
 
@@ -45,12 +46,12 @@ def _find_foreign_key_relations(store: DataStore) -> list[dict[str, str]]:
     return relations
 
 
-def create_mock_router(store: DataStore) -> APIRouter:
+def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = None) -> APIRouter:
     """Generates an APIRouter containing all dynamic routes from the store data."""
     router = APIRouter()
 
     # 1. Register Collection Routes
-    for col_name in store.get_collections():
+    for col_name in store.get_known_collections():
         tag = col_name.capitalize()
 
         # Closure generator for GET /{collection}
@@ -87,6 +88,12 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     if not isinstance(payload, dict):
                         raise HTTPException(status_code=400, detail="Request body must be a JSON object")
                     new_item = store.create(collection, payload)
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="create",
+                            data={"action": "create", "collection": collection, "item": new_item},
+                            collection=collection,
+                        )
                     return JSONResponse(status_code=201, content=new_item)
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
@@ -105,6 +112,12 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     updated = store.update(collection, id, payload, partial=False)
                     if updated is None:
                         raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="update",
+                            data={"action": "update", "collection": collection, "item": updated},
+                            collection=collection,
+                        )
                     return updated
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
@@ -121,6 +134,12 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     updated = store.update(collection, id, payload, partial=True)
                     if updated is None:
                         raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="patch",
+                            data={"action": "patch", "collection": collection, "item": updated},
+                            collection=collection,
+                        )
                     return updated
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
@@ -134,6 +153,12 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     deleted = store.delete(collection, id)
                     if deleted is None:
                         raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="delete",
+                            data={"action": "delete", "collection": collection, "item": deleted},
+                            collection=collection,
+                        )
                     return deleted
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
@@ -185,7 +210,7 @@ def create_mock_router(store: DataStore) -> APIRouter:
         )
 
     # 2. Register Singleton Routes
-    for single_name in store.get_singletons():
+    for single_name in store.get_known_singletons():
         tag = single_name.capitalize()
 
         def make_get_singleton(key: str):
@@ -203,7 +228,14 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     payload = await request.json()
                     if not isinstance(payload, dict):
                         raise HTTPException(status_code=400, detail="Request body must be a JSON object")
-                    return store.update_singleton(key, payload, partial=True)
+                    val = store.update_singleton(key, payload, partial=True)
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="singleton_patch",
+                            data={"action": "patch", "singleton": key, "item": val},
+                            collection=key,
+                        )
+                    return val
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
 
@@ -215,7 +247,14 @@ def create_mock_router(store: DataStore) -> APIRouter:
                     payload = await request.json()
                     if not isinstance(payload, dict):
                         raise HTTPException(status_code=400, detail="Request body must be a JSON object")
-                    return store.update_singleton(key, payload, partial=False)
+                    val = store.update_singleton(key, payload, partial=False)
+                    if broadcaster is not None:
+                        await broadcaster.publish(
+                            event="singleton_update",
+                            data={"action": "update", "singleton": key, "item": val},
+                            collection=key,
+                        )
+                    return val
                 except ReadOnlyError:
                     raise HTTPException(status_code=403, detail="Server is in read-only mode")
 
