@@ -230,3 +230,51 @@ mock-api db.json --port 8000
 ```
 If port 8000 is already in use by another service, `mock-api-py` will automatically test consecutive ports (`8001`, `8002`, ...) and bind to the first available port, notifying the developer in the console.
 
+---
+
+## 10. Dynamic Schema Generator
+
+Generate custom collections using concise inline model syntax or standard schema files:
+
+### Inline Model Syntax
+```bash
+fastmock generate \
+  --model "Patient:id,full_name:name,email:email,blood_type:choice(A+,A-,B+,B-,O+,O-),birth_date:date" \
+  --count 100 \
+  --output clinic_db.json
+```
+
+Supported field definitions:
+* `id`: Auto-incrementing integer or UUIDv4 (`id:uuid`)
+* `name`, `full_name`, `first_name`, `last_name`: Person names
+* `email`: Unique email addresses
+* `phone`: Phone numbers
+* `price`, `amount`: Floats with two decimal places
+* `date`, `created_at`: ISO 8601 timestamps
+* `uuid`: Standard UUIDv4 string
+* `choice(val1,val2,...)`: Random item from comma-separated choices
+* `int(min,max)`: Random integer within bounds
+* `boolean`: Random boolean (`true`/`false`)
+* Foreign key resolution: Fields ending with `Id` (e.g. `patientId`, `userId`) automatically bind to generated records in the corresponding parent collection.
+
+### Schema Files
+Accepts JSON Schema files (draft-07 or 2019-09 definitions/`$defs`) or YAML specifications:
+```bash
+fastmock generate --schema schema.json --count 50 --output db.json
+```
+
+---
+
+## 11. VCR Reverse Proxy & Record Mode
+
+Run as an asynchronous reverse proxy in front of an upstream API to capture live responses directly into your local mock database:
+
+```bash
+fastmock --proxy https://api.github.com --record --save recorded_db.json
+```
+
+* **Transparent Forwarding**: Requests are proxied to `upstream_url + path + query`, forwarding request bodies and stripping hop-by-hop HTTP headers.
+* **Status & Header Propagation**: Upstream status codes, response headers, and content types stream back to the client transparently.
+* **Automatic Ingestion**: Successful `GET` responses containing JSON objects or lists are parsed and stored in collections matching the URL path (e.g. `/v1/charges` records into collection `charges`).
+* **Offline Replay**: Combined with `--save`, captured data persists to disk so you can subsequently boot `fastmock recorded_db.json` in offline mode.
+
