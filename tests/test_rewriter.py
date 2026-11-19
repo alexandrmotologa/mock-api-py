@@ -42,9 +42,7 @@ def test_rewriter_rules():
 @pytest.mark.asyncio
 async def test_rewriter_middleware(tmp_path, sample_data):
     routes_file = tmp_path / "routes.json"
-    routes_file.write_text(
-        '{"/api/*": "/$1", "/catalog/:id": "/products/:id"}', encoding="utf-8"
-    )
+    routes_file.write_text('{"/api/*": "/$1", "/catalog/:id": "/products/:id"}', encoding="utf-8")
 
     store = DataStore(initial_data=sample_data)
     app = create_app(store=store, routes_file=str(routes_file), enable_logging=False)
@@ -108,5 +106,6 @@ async def test_targeted_route_mocking(tmp_path, sample_data):
         assert res_admin_post.json() == {"created": True}
 
         res_admin_get = await client.get("/admin/only-post")
-        assert res_admin_get.status_code == 404  # Not intercepted by mock POST rule, 404 in datastore
-
+        assert (
+            res_admin_get.status_code == 404
+        )  # Not intercepted by mock POST rule, 404 in datastore

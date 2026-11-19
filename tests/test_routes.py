@@ -211,3 +211,59 @@ async def test_static_files(tmp_path, sample_data):
         res = await s_client.get("/static/hello.txt")
         assert res.status_code == 200
         assert res.text == "Mock API Static Content"
+
+
+@pytest.mark.asyncio
+async def test_embed_relations(client):
+    # 1. Embed child collection in list: GET /users?_embed=products
+    res = await client.get("/users?_embed=products")
+    assert res.status_code == 200
+    users = res.json()
+    assert len(users) == 2
+    alice = next(u for u in users if u["id"] == 1)
+    bob = next(u for u in users if u["id"] == 2)
+    assert len(alice["products"]) == 2
+    assert len(bob["products"]) == 1
+    assert alice["products"][0]["title"] == "Wireless Mouse"
+
+    # 2. Embed child collection in single item: GET /users/1?_embed=products
+    res_single = await client.get("/users/1?_embed=products")
+    assert res_single.status_code == 200
+    alice_single = res_single.json()
+    assert len(alice_single["products"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_expand_relations(client):
+    # 1. Expand parent collection in list: GET /products?_expand=user
+    res = await client.get("/products?_expand=user")
+    assert res.status_code == 200
+    products = res.json()
+    assert len(products) == 3
+    assert products[0]["user"]["name"] == "Alice"
+    assert products[2]["user"]["name"] == "Bob"
+
+    # 2. Expand parent collection in single item: GET /products/3?_expand=user
+    res_single = await client.get("/products/3?_expand=user")
+    assert res_single.status_code == 200
+    item = res_single.json()
+    assert item["user"]["name"] == "Bob"
+
+
+@pytest.mark.asyncio
+async def test_header_based_chaos_and_delay(client):
+    # 1. Test X-Status header injection (e.g. 403 Forbidden, 429 Too Many Requests)
+    res_403 = await client.get("/products", headers={"X-Status": "403"})
+    assert res_403.status_code == 403
+    assert "Simulated HTTP 403" in res_403.json()["error"]
+
+    res_429 = await client.get("/products", headers={"X-Status": "429"})
+    assert res_429.status_code == 429
+    assert "Simulated HTTP 429" in res_429.json()["error"]
+
+    # 2. Test X-Delay header injection
+    start_time = time.perf_counter()
+    res_delay = await client.get("/products", headers={"X-Delay": "60ms"})
+    elapsed = time.perf_counter() - start_time
+    assert res_delay.status_code == 200
+    assert elapsed >= 0.05  # At least ~50ms elapsed

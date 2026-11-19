@@ -14,9 +14,7 @@ async def test_file_upload_and_static_serving(tmp_path):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         file_content = b"Hello, this is a mock upload test file!"
-        files = {
-            "file": ("sample.txt", file_content, "text/plain")
-        }
+        files = {"file": ("sample.txt", file_content, "text/plain")}
         res = await ac.post("/upload", files=files)
         assert res.status_code == 200
         data = res.json()

@@ -100,3 +100,25 @@ def test_pagination(sample_data):
     assert res_p2.items[0]["id"] == 3
     assert 'rel="prev"' in res_p2.link_header
     assert 'rel="first"' in res_p2.link_header
+
+
+def test_slice_pagination(sample_data):
+    items = sample_data["products"]
+
+    # _start and _end
+    res_slice = execute_query(items, {"_start": "1", "_end": "3"})
+    assert len(res_slice.items) == 2
+    assert res_slice.total_count == 3
+    assert res_slice.items[0]["id"] == 2
+    assert res_slice.items[1]["id"] == 3
+
+    # _start and _limit
+    res_start_limit = execute_query(items, {"_start": "1", "_limit": "1"})
+    assert len(res_start_limit.items) == 1
+    assert res_start_limit.total_count == 3
+    assert res_start_limit.items[0]["id"] == 2
+
+    # _start with out-of-bounds end
+    res_oob = execute_query(items, {"_start": "2", "_end": "10"})
+    assert len(res_oob.items) == 1
+    assert res_oob.items[0]["id"] == 3

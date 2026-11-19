@@ -17,6 +17,10 @@
   Serves CRUD endpoints, sorting, filtering, pagination, and OpenAPI docs from a JSON file.
 </p>
 
+<p align="center">
+  <img src="docs/images/mock-api-py_demo.gif" alt="mock-api-py interactive demo" width="750" />
+</p>
+
 ## Features
 
 - **FastAPI and ASGI engine**: Runs on Uvicorn with asynchronous I/O.
@@ -26,9 +30,9 @@
 - **Targeted route mocking**: Intercept specific endpoints with custom status codes (401, 402, 429), headers, and payloads defined in `routes.json`.
 - **Server-Sent Events (SSE) real-time streaming**: Stream live datastore mutations (`/events`, `/{col}/_stream`) and periodic synthetic updates (`--stream-interval`) to `EventSource` clients.
 - **Terminal dashboard**: Displays detected resource routes and colored HTTP request logs via Rich.
-- **Chaos testing**: Configurable latency jitter (`--delay 200-800`) and random 500 error injection (`--error-rate 0.1`).
-- **Query engine**: Supports exact filtering, comparisons (`_gt`, `_gte`, `_lt`, `_lte`, `_ne`), substring matching (`_like`), full-text search (`q=`), sorting (`_sort`, `_order`), and pagination (`_page`, `_limit`) with `X-Total-Count` and RFC `Link` headers.
-- **Relational routes**: Automatically connects foreign keys (such as `userId` in `products` mapping to `/users/1/products`).
+- **Chaos testing**: Configurable latency jitter (`--delay 200-800`), random 500 error injection (`--error-rate 0.1`), and dynamic request headers (`X-Delay`, `X-Status`, `X-Error-Rate`) to simulate failure modes on demand.
+- **Query engine**: Supports exact filtering, comparisons (`_gt`, `_gte`, `_lt`, `_lte`, `_ne`), substring matching (`_like`), full-text search (`q=`), multi-field sorting (`_sort`, `_order`), page pagination (`_page`, `_limit`), and slice pagination (`_start`, `_end`) with `X-Total-Count` and RFC `Link` headers.
+- **Relational routes & embedding**: Automatically connects foreign keys via nested endpoints (`/users/1/products`), child embedding (`?_embed=comments`), and parent expansion (`?_expand=user`).
 - **TypeScript generator**: Exports TypeScript interfaces matching your collections via `GET /_types` or through the admin interface.
 - **Database reset**: Reverts data back to its boot snapshot on demand via `POST /_reset`.
 - **File uploads**: Accepts multipart uploads at `POST /upload` and serves them from `/uploads/<filename>`.
@@ -460,7 +464,10 @@ All endpoints are documented interactively in Swagger UI at `/docs`:
 | Substring match | `?title_like=mouse` | Case-insensitive substring match |
 | Full-text search | `?q=wireless` | Searches across all object fields |
 | Sort | `?_sort=price&_order=desc` | Sorts ascending (`asc`) or descending (`desc`) |
-| Pagination | `?_page=1&_limit=10` | Paginates results with `X-Total-Count` and RFC `Link` headers |
+| Page pagination | `?_page=1&_limit=10` | Paginates results with `X-Total-Count` and RFC `Link` headers |
+| Slice pagination | `?_start=0&_end=20` | Zero-indexed range or slice with `_start` and `_end` or `_limit` |
+| Embed relations | `?_embed=comments` | Ingests child collections matching foreign key into parent objects |
+| Expand relations | `?_expand=user` | Ingests parent objects into child records using foreign keys |
 | Nested routes | `GET /users/1/products` | Filters products matching `userId: 1` |
 
 For more details, see [docs/api.md](docs/api.md).

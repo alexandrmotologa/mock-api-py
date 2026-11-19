@@ -11,6 +11,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 @dataclass
 class QueryResult:
     """Encapsulates the filtered/paginated items and pagination metadata."""
+
     items: list[dict[str, Any]]
     total_count: int
     link_header: str | None = None
@@ -155,7 +156,7 @@ def execute_query(
     filtered = list(items)
 
     # 1. Separate reserved query parameters
-    reserved = {"_sort", "_order", "_page", "_limit", "q"}
+    reserved = {"_sort", "_order", "_page", "_limit", "_start", "_end", "_embed", "_expand", "q"}
     filter_params = {k: v for k, v in params.items() if k not in reserved}
 
     # 2. Filter by fields and comparative operators
@@ -164,60 +165,63 @@ def execute_query(
             field = raw_key[:-4]
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field in item and _compare_values(item[field], coerced, "gte")
             ]
         elif raw_key.endswith("_lte"):
             field = raw_key[:-4]
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field in item and _compare_values(item[field], coerced, "lte")
             ]
         elif raw_key.endswith("_gt"):
             field = raw_key[:-3]
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field in item and _compare_values(item[field], coerced, "gt")
             ]
         elif raw_key.endswith("_lt"):
             field = raw_key[:-3]
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field in item and _compare_values(item[field], coerced, "lt")
             ]
         elif raw_key.endswith("_ne"):
             field = raw_key[:-3]
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field not in item or _compare_values(item[field], coerced, "ne")
             ]
         elif raw_key.endswith("_like"):
             field = raw_key[:-5]
             filtered = [
-                item for item in filtered
+                item
+                for item in filtered
                 if field in item and _compare_values(item[field], raw_val, "like")
             ]
         else:
             # Exact match
             coerced = _coerce_value(str(raw_val))
             filtered = [
-                item for item in filtered
-                if raw_key in item and (
-                    item[raw_key] == coerced or str(item[raw_key]).lower() == str(raw_val).lower()
-                )
+                item
+                for item in filtered
+                if raw_key in item
+                and (item[raw_key] == coerced or str(item[raw_key]).lower() == str(raw_val).lower())
             ]
 
     # 3. Full-Text Search (q)
     query_term = params.get("q")
     if query_term is not None and str(query_term).strip():
-        filtered = [
-            item for item in filtered
-            if _matches_full_text(item, str(query_term).strip())
-        ]
+        filtered = [item for item in filtered if _matches_full_text(item, str(query_term).strip())]
 
     # 4. Sorting (_sort, _order)
     sort_fields_str = params.get("_sort")
@@ -244,10 +248,34 @@ def execute_query(
 
     total_count = len(filtered)
 
-    # 5. Pagination (_page, _limit)
+    # 5. Pagination (_start, _end, _page, _limit)
+    start_param = params.get("_start")
+    end_param = params.get("_end")
     page_param = params.get("_page")
     limit_param = params.get("_limit")
     link_header: str | None = None
+
+    if start_param is not None or end_param is not None:
+        try:
+            start = max(0, int(start_param or 0))
+        except (ValueError, TypeError):
+            start = 0
+
+        if end_param is not None:
+            try:
+                end = max(start, int(end_param))
+            except (ValueError, TypeError):
+                end = total_count
+        elif limit_param is not None:
+            try:
+                end = start + max(1, int(limit_param))
+            except (ValueError, TypeError):
+                end = total_count
+        else:
+            end = total_count
+
+        paginated_items = filtered[start:end]
+        return QueryResult(items=paginated_items, total_count=total_count, link_header=None)
 
     if page_param is not None or limit_param is not None:
         try:

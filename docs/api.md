@@ -86,9 +86,14 @@ GET /products?_sort=category,price&_order=asc,desc
 ```
 
 ### Pagination & Headers
-Paginate results with page and limit parameters:
+Paginate results with page, limit, or slice parameters:
 ```http
+# Page-based pagination
 GET /products?_page=1&_limit=10
+
+# Slice / Range-based pagination
+GET /products?_start=0&_end=25
+GET /products?_start=10&_limit=10
 ```
 
 #### Response Headers:
@@ -99,16 +104,44 @@ GET /products?_page=1&_limit=10
   ```
 * `Access-Control-Expose-Headers`: Exposes `X-Total-Count, Link` to browser clients.
 
+### Relationships: Embedding & Expanding
+
+Ingest related resources directly into responses:
+
+#### 1. Embed Child Resources (`_embed`)
+Include children belonging to the resource (e.g. posts for a user, comments for a post):
+```http
+GET /users?_embed=posts
+GET /users/1?_embed=posts
+GET /posts?_embed=comments
+```
+
+#### 2. Expand Parent Resources (`_expand`)
+Include parent records referenced by foreign keys:
+```http
+GET /comments?_expand=post
+GET /comments/1?_expand=post
+GET /products?_expand=user
+```
+
+#### 3. Combined Embed & Expand
+```http
+GET /comments?_expand=post&_embed=likes
+```
+
 ---
 
 ## 3. Chaos Engineering & Simulation
 
-### Latency Injection (`--delay`)
+### Latency Injection (`--delay` and `X-Delay`)
 * Fixed latency: `--delay 300` (adds 300ms to every request).
 * Jitter range: `--delay 100-500` (adds a random latency between 100ms and 500ms).
+* **Per-request header override**: Supply `X-Delay: 500ms` or `X-Delay: 200-800` in the request headers to simulate latency on specific calls without restarting the server.
 
-### Chaos Error Rate (`--error-rate`)
+### Chaos Error Rate (`--error-rate`, `X-Status`, and `X-Error-Rate`)
 * Inject random HTTP 500 errors: `--error-rate 0.1` (10% of requests will fail).
+* **Per-request status injection**: Pass `X-Status: 403`, `X-Status: 429`, or `X-Status: 500` to immediately force a specific error status code for testing error boundaries and retry logic.
+* **Per-request error rate**: Pass `X-Error-Rate: 0.5` to simulate flakey behavior on targeted endpoints.
 * The documentation endpoints (`/docs`, `/redoc`, `/openapi.json`) are automatically exempt from chaos injection so developers can inspect schemas uninterrupted.
 
 ---

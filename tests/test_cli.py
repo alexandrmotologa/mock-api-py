@@ -13,7 +13,9 @@ def test_auto_create_missing_db_file(tmp_path):
     assert not target.exists()
 
     # Run the generate command or verify file creation
-    result = runner.invoke(app, ["generate", "--output", str(target), "--schema", "users:2,posts:3"])
+    result = runner.invoke(
+        app, ["generate", "--output", str(target), "--schema", "users:2,posts:3"]
+    )
     assert result.exit_code == 0
     assert target.exists()
 
@@ -27,6 +29,7 @@ def test_auto_create_missing_db_file(tmp_path):
 
 def test_find_available_port():
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         busy_port = s.getsockname()[1]
@@ -55,7 +58,9 @@ def test_cli_import_command(tmp_path):
     spec_file.write_text(json.dumps(spec_data), encoding="utf-8")
 
     out_file = tmp_path / "imported.json"
-    result = runner.invoke(app, ["import", str(spec_file), "--output", str(out_file), "--count", "4"])
+    result = runner.invoke(
+        app, ["import", str(spec_file), "--output", str(out_file), "--count", "4"]
+    )
     assert result.exit_code == 0
     assert out_file.exists()
 
@@ -72,4 +77,3 @@ def test_cli_run_help_options():
     assert "--fixtures" in clean_output
     assert "--scenario" in clean_output
     assert "--stream-interval" in clean_output
-

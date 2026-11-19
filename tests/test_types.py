@@ -41,11 +41,7 @@ def test_generate_typescript_definitions():
 @pytest.mark.anyio
 async def test_types_http_endpoint():
     store = DataStore(
-        initial_data={
-            "articles": [
-                {"id": 101, "title": "Understanding Mock APIs", "views": 1500}
-            ]
-        }
+        initial_data={"articles": [{"id": 101, "title": "Understanding Mock APIs", "views": 1500}]}
     )
     app = create_app(store)
     transport = ASGITransport(app=app)

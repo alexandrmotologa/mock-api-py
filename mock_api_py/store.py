@@ -158,11 +158,7 @@ class DataStore:
 
     def get_collections(self) -> dict[str, int]:
         """Returns a mapping of collection names to their current item count."""
-        return {
-            k: len(v)
-            for k, v in self.data.items()
-            if isinstance(v, list)
-        }
+        return {k: len(v) for k, v in self.data.items() if isinstance(v, list)}
 
     def get_known_collections(self) -> list[str]:
         """Returns all collection names present in active data or any loaded scenario fixture."""
@@ -176,10 +172,7 @@ class DataStore:
 
     def get_singletons(self) -> list[str]:
         """Returns a list of keys representing singleton objects."""
-        return [
-            k for k, v in self.data.items()
-            if isinstance(v, dict)
-        ]
+        return [k for k, v in self.data.items() if isinstance(v, dict)]
 
     def get_known_singletons(self) -> list[str]:
         """Returns all singleton keys present in active data or any loaded scenario fixture."""
@@ -244,7 +237,9 @@ class DataStore:
         else:
             # Check for duplicate ID
             if self.get_by_id(collection, new_item["id"]) is not None:
-                raise ValueError(f"Item with ID '{new_item['id']}' already exists in '{collection}'")
+                raise ValueError(
+                    f"Item with ID '{new_item['id']}' already exists in '{collection}'"
+                )
 
         self.data[collection].append(new_item)
         self.save()

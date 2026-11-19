@@ -11,6 +11,7 @@ from rich.console import Console
 from starlette.responses import StreamingResponse
 from starlette.staticfiles import StaticFiles
 
+from mock_api_py import __version__
 from mock_api_py.admin import create_admin_router
 from mock_api_py.auth import DEFAULT_SECRET, AuthMiddleware, create_auth_router
 from mock_api_py.events import EventBroadcaster, format_sse
@@ -55,6 +56,7 @@ def create_app(
         ticker_task = None
 
         if watch and store.file_path:
+
             async def _watch_loop():
                 while True:
                     try:
@@ -72,6 +74,7 @@ def create_app(
             watch_task = asyncio.create_task(_watch_loop())
 
         if stream_interval > 0:
+
             async def _ticker_loop():
                 tick_count = 0
                 while True:
@@ -102,7 +105,7 @@ def create_app(
 
     app = FastAPI(
         title="mock-api-py",
-        version="0.1.2",
+        version=__version__,
         description="Instant Modern Mock REST API Engine built on FastAPI",
         docs_url="/docs",
         redoc_url="/redoc",
@@ -126,11 +129,8 @@ def create_app(
     if enable_auth:
         app.add_middleware(AuthMiddleware, secret=jwt_secret)
 
-    if error_rate > 0:
-        app.add_middleware(ChaosErrorMiddleware, error_rate=error_rate)
-
-    if delay:
-        app.add_middleware(DelayInjectorMiddleware, delay_spec=delay)
+    app.add_middleware(ChaosErrorMiddleware, error_rate=error_rate)
+    app.add_middleware(DelayInjectorMiddleware, delay_spec=delay)
 
     if routes_file:
         rewriter = URLRewriter.from_file(routes_file)
@@ -151,7 +151,11 @@ def create_app(
         app.include_router(auth_router)
 
     # 4. Real-time Server-Sent Events (SSE) Routes (Mounted before dynamic collection router to prevent /{col}/{id} collisions)
-    @app.get("/events", tags=["Realtime"], summary="Subscribe to real-time events across all collections (SSE)")
+    @app.get(
+        "/events",
+        tags=["Realtime"],
+        summary="Subscribe to real-time events across all collections (SSE)",
+    )
     async def sse_events(limit: int | None = None):
         q = broadcaster.subscribe()
 
@@ -166,7 +170,9 @@ def create_app(
                 while True:
                     try:
                         msg = await asyncio.wait_for(q.get(), timeout=1.0)
-                        yield format_sse(msg["data"], event=msg.get("event"), event_id=msg.get("id"))
+                        yield format_sse(
+                            msg["data"], event=msg.get("event"), event_id=msg.get("id")
+                        )
                         sent += 1
                         if limit is not None and sent >= limit:
                             return
@@ -207,7 +213,9 @@ def create_app(
                     try:
                         msg = await asyncio.wait_for(q.get(), timeout=1.0)
                         if msg.get("collection") is None or msg.get("collection") == collection:
-                            yield format_sse(msg["data"], event=msg.get("event"), event_id=msg.get("id"))
+                            yield format_sse(
+                                msg["data"], event=msg.get("event"), event_id=msg.get("id")
+                            )
                             sent += 1
                             if limit is not None and sent >= limit:
                                 return
@@ -334,7 +342,7 @@ def create_app(
     async def root_overview():
         return {
             "name": "mock-api-py",
-            "version": "0.1.2",
+            "version": __version__,
             "documentation": "/docs",
             "admin_dashboard": "/_admin",
             "typescript_types": "/_types",

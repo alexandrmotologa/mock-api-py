@@ -13,7 +13,12 @@ def _to_pascal_case(word: str) -> str:
     lower = word.lower()
     if lower.endswith("ies"):
         singular = word[:-3] + "y"
-    elif lower.endswith("ses") or lower.endswith("xes") or lower.endswith("ches") or lower.endswith("shes"):
+    elif (
+        lower.endswith("ses")
+        or lower.endswith("xes")
+        or lower.endswith("ches")
+        or lower.endswith("shes")
+    ):
         singular = word[:-2]
     elif lower.endswith("s") and not lower.endswith("ss") and len(lower) > 3:
         singular = word[:-1]

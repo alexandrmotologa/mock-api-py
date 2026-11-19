@@ -46,9 +46,7 @@ async def test_auth_routes_and_protection(sample_data):
         assert auth_data["user"]["email"] == "alice@example.com"
 
         # 2. Test GET /auth/me with Bearer token
-        me_res = await client.get(
-            "/auth/me", headers={"Authorization": f"Bearer {token}"}
-        )
+        me_res = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert me_res.status_code == 200
         assert me_res.json()["user"]["email"] == "alice@example.com"
 

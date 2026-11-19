@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import random
 import time
 from datetime import datetime
@@ -52,36 +53,59 @@ class DelayInjectorMiddleware(BaseHTTPMiddleware):
         self.delay_range = parse_delay_arg(delay_spec)
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if self.delay_range and request.url.path not in DOCS_PATHS:
-            min_delay, max_delay = self.delay_range
-            sleep_duration = random.uniform(min_delay, max_delay)
-            if sleep_duration > 0:
-                await asyncio.sleep(sleep_duration)
+        if request.url.path not in DOCS_PATHS:
+            # Check for per-request X-Delay header override (e.g., '500ms', '200-800')
+            custom_delay = request.headers.get("x-delay")
+            delay_range = parse_delay_arg(custom_delay) if custom_delay else self.delay_range
+            if delay_range:
+                min_delay, max_delay = delay_range
+                sleep_duration = random.uniform(min_delay, max_delay)
+                if sleep_duration > 0:
+                    await asyncio.sleep(sleep_duration)
 
         return await call_next(request)
 
 
 class ChaosErrorMiddleware(BaseHTTPMiddleware):
-    """Randomly injects HTTP 500 Internal Server Errors based on the configured error rate."""
+    """Randomly injects HTTP errors based on error rate or custom request headers."""
 
     def __init__(self, app, error_rate: float = 0.0):
         super().__init__(app)
         self.error_rate = max(0.0, min(1.0, float(error_rate or 0.0)))
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if (
-            self.error_rate > 0
-            and request.url.path not in DOCS_PATHS
-            and random.random() < self.error_rate
-        ):
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "error": "Chaos Engine: Simulated 500 Internal Server Error",
-                    "path": request.url.path,
-                    "timestamp": datetime.now().isoformat(),
-                },
-            )
+        if request.url.path not in DOCS_PATHS:
+            # 1. Check for explicit X-Status header override (e.g. X-Status: 403, 429, 500)
+            custom_status = request.headers.get("x-status")
+            if custom_status:
+                with contextlib.suppress(ValueError):
+                    code = int(custom_status)
+                    if 400 <= code <= 599:
+                        return JSONResponse(
+                            status_code=code,
+                            content={
+                                "error": f"Chaos Engine: Simulated HTTP {code}",
+                                "path": request.url.path,
+                                "timestamp": datetime.now().isoformat(),
+                            },
+                        )
+
+            # 2. Check for per-request X-Error-Rate override or fallback to configured error_rate
+            custom_rate = request.headers.get("x-error-rate")
+            effective_rate = self.error_rate
+            if custom_rate:
+                with contextlib.suppress(ValueError):
+                    effective_rate = max(0.0, min(1.0, float(custom_rate)))
+
+            if effective_rate > 0 and random.random() < effective_rate:
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": "Chaos Engine: Simulated 500 Internal Server Error",
+                        "path": request.url.path,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
 
         return await call_next(request)
 

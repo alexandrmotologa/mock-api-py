@@ -82,9 +82,13 @@ def parse_openapi_spec(file_path: str | Path) -> SchemaSpec:
             if not isinstance(path_item, dict):
                 continue
             for method, operation in path_item.items():
-                if method.lower() not in {"get", "post", "put", "patch", "delete"} or not isinstance(
-                    operation, dict
-                ):
+                if method.lower() not in {
+                    "get",
+                    "post",
+                    "put",
+                    "patch",
+                    "delete",
+                } or not isinstance(operation, dict):
                     continue
                 responses = operation.get("responses", {})
                 if not isinstance(responses, dict):
@@ -119,9 +123,10 @@ def parse_openapi_spec(file_path: str | Path) -> SchemaSpec:
                                 if ref_name and ref_name not in discovered_schemas and resolved:
                                     discovered_schemas[ref_name] = resolved
                         elif "properties" in schema_obj:
-                            model_name = schema_obj.get("title") or path_key.strip("/").split("/")[
-                                -1
-                            ].capitalize()
+                            model_name = (
+                                schema_obj.get("title")
+                                or path_key.strip("/").split("/")[-1].capitalize()
+                            )
                             if model_name not in discovered_schemas:
                                 discovered_schemas[model_name] = schema_obj
 
@@ -175,9 +180,10 @@ def import_openapi_to_db(
     generates synthetic mock data, and optionally writes it to output_path.
     """
     spec = parse_openapi_spec(spec_path)
-    return generate_from_schema(spec, count=count, output_path=str(output_path) if output_path else None)
+    return generate_from_schema(
+        spec, count=count, output_path=str(output_path) if output_path else None
+    )
 
 
 # Alias for convenience
 import_openapi_spec = import_openapi_to_db
-

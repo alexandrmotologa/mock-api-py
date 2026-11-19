@@ -31,7 +31,9 @@ def _base64url_decode(data: str) -> bytes:
     return base64.urlsafe_b64decode(data.encode("utf-8"))
 
 
-def create_access_token(payload: dict[str, Any], secret: str = DEFAULT_SECRET, expires_in: int = 86400) -> str:
+def create_access_token(
+    payload: dict[str, Any], secret: str = DEFAULT_SECRET, expires_in: int = 86400
+) -> str:
     """Generates a standard HS256 signed JSON Web Token."""
     header = {"alg": "HS256", "typ": "JWT"}
     token_payload = dict(payload)
@@ -39,7 +41,9 @@ def create_access_token(payload: dict[str, Any], secret: str = DEFAULT_SECRET, e
     token_payload["iat"] = int(time.time())
 
     encoded_header = _base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    encoded_payload = _base64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
+    encoded_payload = _base64url_encode(
+        json.dumps(token_payload, separators=(",", ":")).encode("utf-8")
+    )
 
     signing_input = f"{encoded_header}.{encoded_payload}".encode()
     signature = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
@@ -56,7 +60,9 @@ def verify_access_token(token: str, secret: str = DEFAULT_SECRET) -> dict[str, A
 
     encoded_header, encoded_payload, encoded_signature = parts
     signing_input = f"{encoded_header}.{encoded_payload}".encode()
-    expected_sig = _base64url_encode(hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest())
+    expected_sig = _base64url_encode(
+        hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    )
 
     if not hmac.compare_digest(expected_sig, encoded_signature):
         return None
@@ -203,7 +209,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if not auth_header.startswith("Bearer "):
                 return JSONResponse(
                     status_code=401,
-                    content={"detail": "Unauthorized: Missing or invalid Authorization Bearer token"},
+                    content={
+                        "detail": "Unauthorized: Missing or invalid Authorization Bearer token"
+                    },
                 )
 
             token = auth_header[7:].strip()

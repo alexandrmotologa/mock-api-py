@@ -206,9 +206,7 @@ def _generate_field_value(
         for candidate in candidates:
             if candidate in db and db[candidate]:
                 parent_ids = [
-                    item["id"]
-                    for item in db[candidate]
-                    if isinstance(item, dict) and "id" in item
+                    item["id"] for item in db[candidate] if isinstance(item, dict) and "id" in item
                 ]
                 if parent_ids:
                     return random.choice(parent_ids)
@@ -249,7 +247,9 @@ def _generate_field_value(
         return random.randint(1, 1000)
     if type_name in {"float", "number"}:
         if isinstance(field_spec.params, (list, tuple)) and len(field_spec.params) >= 2:
-            return round(random.uniform(float(field_spec.params[0]), float(field_spec.params[1])), 2)
+            return round(
+                random.uniform(float(field_spec.params[0]), float(field_spec.params[1])), 2
+            )
         return round(random.uniform(1.0, 100.0), 2)
     if type_name in {"boolean", "bool"}:
         return random.choice([True, False])

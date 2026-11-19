@@ -81,12 +81,24 @@ def print_banner(
     console.print(panel)
 
     base_url = f"http://{host}:{port}"
-    console.print(f" 🚀 [bold green]Server running at:[/bold green]      [underline cyan]{base_url}[/underline cyan]")
-    console.print(f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan]    [underline cyan]{base_url}/_admin[/underline cyan]")
-    console.print(f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]     [underline cyan]{base_url}/docs[/underline cyan]")
-    console.print(f" 📘 [bold blue]TypeScript Definitions:[/bold blue]   [underline cyan]{base_url}/_types[/underline cyan]")
-    console.print(f" 📡 [bold cyan]Real-time Stream (SSE):[/bold cyan]  [underline cyan]{base_url}/events[/underline cyan]")
-    console.print(f" 📤 [bold green]File Upload Endpoint:[/bold green]     [underline cyan]{base_url}/upload[/underline cyan]")
+    console.print(
+        f" 🚀 [bold green]Server running at:[/bold green]      [underline cyan]{base_url}[/underline cyan]"
+    )
+    console.print(
+        f" 💻 [bold cyan]Web Dashboard Studio:[/bold cyan]    [underline cyan]{base_url}/_admin[/underline cyan]"
+    )
+    console.print(
+        f" 📖 [bold magenta]Interactive API Docs:[/bold magenta]     [underline cyan]{base_url}/docs[/underline cyan]"
+    )
+    console.print(
+        f" 📘 [bold blue]TypeScript Definitions:[/bold blue]   [underline cyan]{base_url}/_types[/underline cyan]"
+    )
+    console.print(
+        f" 📡 [bold cyan]Real-time Stream (SSE):[/bold cyan]  [underline cyan]{base_url}/events[/underline cyan]"
+    )
+    console.print(
+        f" 📤 [bold green]File Upload Endpoint:[/bold green]     [underline cyan]{base_url}/upload[/underline cyan]"
+    )
 
     status_parts = []
     if proxy:
@@ -108,22 +120,30 @@ def print_banner(
     if read_only:
         status_parts.append("🔒 Mode: [bold red]Read-Only[/bold red]")
     else:
-        status_parts.append(f"💾 Auto-save: [bold green]{'ON' if save else 'OFF (In-Memory)'}[/bold green]")
+        status_parts.append(
+            f"💾 Auto-save: [bold green]{'ON' if save else 'OFF (In-Memory)'}[/bold green]"
+        )
 
     console.print(f" {' | '.join(status_parts)}")
     if routes:
         console.print(f" 🔀 [bold]Custom Routes:[/bold] [yellow]{routes}[/yellow]")
     if static_dir:
-        console.print(f" 📁 [bold]Static files:[/bold]  [underline cyan]{base_url}/static[/underline cyan] [dim]({static_dir})[/dim]")
+        console.print(
+            f" 📁 [bold]Static files:[/bold]  [underline cyan]{base_url}/static[/underline cyan] [dim]({static_dir})[/dim]"
+        )
     console.print(" 📦 [bold]Detected Resources:[/bold]")
 
     collections = store.get_collections()
     for col_name, count in collections.items():
-        console.print(f"   [dim]•[/dim] [bold cyan]GET[/bold cyan] [white]/{col_name:<14}[/white] [dim][{count} items][/dim]")
+        console.print(
+            f"   [dim]•[/dim] [bold cyan]GET[/bold cyan] [white]/{col_name:<14}[/white] [dim][{count} items][/dim]"
+        )
 
     singletons = store.get_singletons()
     for sin_name in singletons:
-        console.print(f"   [dim]•[/dim] [bold cyan]GET[/bold cyan] [white]/{sin_name:<14}[/white] [dim][1 object][/dim]")
+        console.print(
+            f"   [dim]•[/dim] [bold cyan]GET[/bold cyan] [white]/{sin_name:<14}[/white] [dim][1 object][/dim]"
+        )
 
     console.print()
 
@@ -152,7 +172,10 @@ def run_server(
         False, "--read-only", help="Block mutations (POST/PUT/PATCH/DELETE)."
     ),
     watch: bool = typer.Option(
-        False, "--watch", "-w", help="Watch JSON file and auto-reload in-memory data on external change."
+        False,
+        "--watch",
+        "-w",
+        help="Watch JSON file and auto-reload in-memory data on external change.",
     ),
     static: str | None = typer.Option(
         None, "--static", help="Directory path to serve static files from at /static."
@@ -176,7 +199,9 @@ def run_server(
         None, "--scenario", help="Initial test fixture scenario name to activate on startup."
     ),
     stream_interval: float = typer.Option(
-        0.0, "--stream-interval", help="Periodic SSE tick emission interval in seconds (0 = disabled)."
+        0.0,
+        "--stream-interval",
+        help="Periodic SSE tick emission interval in seconds (0 = disabled).",
     ),
 ) -> None:
     """Starts the instant modern mock REST API server from a JSON database file."""
@@ -194,29 +219,35 @@ def run_server(
             {"id": 1, "title": "Hello World", "userId": 1},
             {"id": 2, "title": "Modern Mock API", "userId": 1},
         ],
-        "users": [
-            {"id": 1, "name": "Developer", "email": "dev@example.com"}
-        ],
-        "profile": {"status": "ready"}
+        "users": [{"id": 1, "name": "Developer", "email": "dev@example.com"}],
+        "profile": {"status": "ready"},
     }
 
     initial_data = None
     if not target_path or not target_path.exists():
         if target_path:
-            console.print(f"✨ [bold yellow]File '{target_path}' not found.[/bold yellow] Creating starter database with sample data...")
+            console.print(
+                f"✨ [bold yellow]File '{target_path}' not found.[/bold yellow] Creating starter database with sample data..."
+            )
             try:
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(target_path, "w", encoding="utf-8") as f:
                     json.dump(starter_data, f, indent=2)
                     f.write("\n")
-                console.print(f"✅ Created [bold green]{target_path}[/bold green] with sample resources ([cyan]posts[/cyan], [cyan]users[/cyan], [cyan]profile[/cyan]).\n")
+                console.print(
+                    f"✅ Created [bold green]{target_path}[/bold green] with sample resources ([cyan]posts[/cyan], [cyan]users[/cyan], [cyan]profile[/cyan]).\n"
+                )
             except Exception as e:
-                console.print(f"[bold red]Warning:[/bold red] Could not create '{target_path}' ({e}). Falling back to in-memory mode.")
+                console.print(
+                    f"[bold red]Warning:[/bold red] Could not create '{target_path}' ({e}). Falling back to in-memory mode."
+                )
                 initial_data = starter_data
                 target_path = None
         else:
             # Create a minimal sample in-memory if no file provided
-            console.print("[yellow]No JSON file specified. Using in-memory starter database...[/yellow]")
+            console.print(
+                "[yellow]No JSON file specified. Using in-memory starter database...[/yellow]"
+            )
             initial_data = starter_data
 
     store = DataStore(
@@ -230,7 +261,9 @@ def run_server(
     if scenario:
         try:
             store.load_scenario(scenario)
-            console.print(f"🎭 [bold green]Active Scenario initialized to:[/bold green] [bold cyan]{scenario}[/bold cyan]")
+            console.print(
+                f"🎭 [bold green]Active Scenario initialized to:[/bold green] [bold cyan]{scenario}[/bold cyan]"
+            )
         except KeyError as e:
             console.print(f"⚠️  [bold yellow]Warning:[/bold yellow] {e}")
 
@@ -284,12 +317,18 @@ def run_server(
 
 @app.command(name="import")
 def import_command(
-    spec_path: str = typer.Argument(..., help="Path to OpenAPI / Swagger spec file (JSON or YAML)."),
+    spec_path: str = typer.Argument(
+        ..., help="Path to OpenAPI / Swagger spec file (JSON or YAML)."
+    ),
     output: str = typer.Option("db.json", "--output", "-o", help="Target output JSON file path."),
-    count: int = typer.Option(10, "--count", "-c", help="Number of records to generate per resource."),
+    count: int = typer.Option(
+        10, "--count", "-c", help="Number of records to generate per resource."
+    ),
 ) -> None:
     """Imports an OpenAPI 3.x or Swagger 2.0 specification and generates realistic mock datasets."""
-    console.print(f"[cyan]Parsing OpenAPI / Swagger specification:[/cyan] [yellow]{spec_path}[/yellow]...")
+    console.print(
+        f"[cyan]Parsing OpenAPI / Swagger specification:[/cyan] [yellow]{spec_path}[/yellow]..."
+    )
     db = import_openapi_spec(spec_path, count=count, output_path=output)
     total_records = sum(len(v) for v in db.values() if isinstance(v, list))
     console.print(
@@ -300,9 +339,7 @@ def import_command(
 
 @app.command(name="generate")
 def generate_command(
-    output: str = typer.Option(
-        "db.json", "--output", "-o", help="Target JSON file path."
-    ),
+    output: str = typer.Option("db.json", "--output", "-o", help="Target JSON file path."),
     model: str | None = typer.Option(
         None,
         "--model",
@@ -339,7 +376,9 @@ def generate_command(
             db = generate_from_schema(spec, count=count, output_path=output)
         else:
             # Legacy format string: e.g. "users:10,products:25,posts:50"
-            console.print(f"[cyan]Generating synthetic database with schema:[/cyan] [yellow]{schema}[/yellow]...")
+            console.print(
+                f"[cyan]Generating synthetic database with schema:[/cyan] [yellow]{schema}[/yellow]..."
+            )
             db = generate_mock_database(schema_str=schema, output_path=output)
     else:
         default_schema = "users:10,products:25,posts:50"
@@ -359,7 +398,13 @@ def cli_entry():
     """Main CLI entrypoint routing default commands cleanly."""
     args = sys.argv[1:]
     # If no arguments, or first argument is not a known command and not a flag for help
-    if not args or args[0] not in KNOWN_COMMANDS and not args[0].startswith("-") or args[0].startswith("-") and args[0] not in {"--help", "-h", "--version"}:
+    if (
+        not args
+        or args[0] not in KNOWN_COMMANDS
+        and not args[0].startswith("-")
+        or args[0].startswith("-")
+        and args[0] not in {"--help", "-h", "--version"}
+    ):
         sys.argv.insert(1, "run")
 
     app()

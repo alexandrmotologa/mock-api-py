@@ -78,6 +78,7 @@ async def test_sse_global_events_mutation_stream():
         AsyncClient(transport=transport, base_url="http://testserver") as client_stream,
         AsyncClient(transport=transport, base_url="http://testserver") as client_sender,
     ):
+
         async def trigger_mutation():
             await asyncio.sleep(0.05)
             await client_sender.post("/users", json={"name": "Bob"})
@@ -96,10 +97,12 @@ async def test_sse_global_events_mutation_stream():
 
 @pytest.mark.asyncio
 async def test_sse_collection_filtered_stream():
-    store = DataStore(initial_data={
-        "users": [{"id": 1, "name": "Alice"}],
-        "posts": [{"id": 1, "title": "Hello"}],
-    })
+    store = DataStore(
+        initial_data={
+            "users": [{"id": 1, "name": "Alice"}],
+            "posts": [{"id": 1, "title": "Hello"}],
+        }
+    )
     broadcaster = EventBroadcaster()
     app = create_app(store=store, broadcaster=broadcaster, enable_logging=False)
     transport = ASGITransport(app=app)
@@ -108,6 +111,7 @@ async def test_sse_collection_filtered_stream():
         AsyncClient(transport=transport, base_url="http://testserver") as client_stream,
         AsyncClient(transport=transport, base_url="http://testserver") as client_sender,
     ):
+
         async def trigger_mutations():
             await asyncio.sleep(0.05)
             # 1. Mutate 'posts' -> filtered out by /users/_stream

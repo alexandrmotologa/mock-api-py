@@ -24,4 +24,3 @@ async def test_admin_dashboard_endpoint(sample_data):
         assert "TypeScript" in html
         assert "Reset DB" in html
         assert "ts-modal" in html
-

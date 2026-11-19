@@ -59,8 +59,14 @@ def deduce_collection_name(path: str) -> str:
 
     last = parts[-1]
     is_id = False
-    if last.isdigit() or len(last) == 36 and last.count("-") == 4 or "_" in last and any(c.isdigit() for c in last) or len(parts) >= 2 and (
-        parts[-2].endswith("s") or parts[-2].endswith("ies") or parts[-2].endswith("es")
+    if (
+        last.isdigit()
+        or len(last) == 36
+        and last.count("-") == 4
+        or "_" in last
+        and any(c.isdigit() for c in last)
+        or len(parts) >= 2
+        and (parts[-2].endswith("s") or parts[-2].endswith("ies") or parts[-2].endswith("es"))
     ):
         is_id = True
 
@@ -151,7 +157,11 @@ class ProxyRecorderMiddleware(BaseHTTPMiddleware):
             )
 
         # Ingest payload into store if record mode is enabled
-        if self.record and request.method.upper() == "GET" and 200 <= upstream_res.status_code < 300:
+        if (
+            self.record
+            and request.method.upper() == "GET"
+            and 200 <= upstream_res.status_code < 300
+        ):
             content_type = upstream_res.headers.get("content-type", "")
             if "application/json" in content_type:
                 try:

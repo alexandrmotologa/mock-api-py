@@ -2,12 +2,168 @@
 
 from __future__ import annotations
 
+import copy
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 from mock_api_py.events import EventBroadcaster
 from mock_api_py.query_engine import execute_query
 from mock_api_py.store import DataStore, ReadOnlyError
+
+
+def _singularize(word: str) -> str:
+    """Converts a plural collection name to its singular form."""
+    lower = word.lower()
+    if lower.endswith("ies") and len(lower) > 3:
+        return word[:-3] + "y"
+    elif (
+        lower.endswith("ses")
+        or lower.endswith("xes")
+        or lower.endswith("ches")
+        or lower.endswith("shes")
+    ):
+        return word[:-2]
+    elif lower.endswith("s") and not lower.endswith("ss") and len(lower) > 3:
+        return word[:-1]
+    return word
+
+
+def _pluralize(word: str) -> str:
+    """Converts a singular word to a plural collection name."""
+    lower = word.lower()
+    if lower.endswith("y") and len(lower) > 2 and lower[-2] not in "aeiou":
+        return word[:-1] + "ies"
+    elif lower.endswith("s") or lower.endswith("x") or lower.endswith("ch") or lower.endswith("sh"):
+        return word + "es"
+    elif not lower.endswith("s"):
+        return word + "s"
+    return word
+
+
+def resolve_relations_for_item(
+    item: dict[str, Any],
+    current_collection: str,
+    store: DataStore,
+    embed: str | None = None,
+    expand: str | None = None,
+) -> dict[str, Any]:
+    """Resolves _embed and _expand foreign key relationships for a single item."""
+    if not isinstance(item, dict):
+        return item
+
+    result = copy.deepcopy(item)
+    known_cols = store.get_known_collections()
+
+    # 1. Embed child collections (e.g. GET /posts?_embed=comments)
+    if embed:
+        embed_targets = [e.strip() for e in embed.split(",") if e.strip()]
+        for target in embed_targets:
+            target_col = None
+            for col in known_cols:
+                if col.lower() == target.lower():
+                    target_col = col
+                    break
+            if not target_col:
+                plural = _pluralize(target)
+                for col in known_cols:
+                    if col.lower() == plural.lower():
+                        target_col = col
+                        break
+
+            if not target_col:
+                result[target] = []
+                continue
+
+            parent_singular = _singularize(current_collection)
+            candidate_fks = [
+                f"{parent_singular}Id",
+                f"{parent_singular}_id",
+                parent_singular,
+                f"{current_collection}Id",
+                f"{current_collection}_id",
+            ]
+
+            parent_id_str = str(result.get("id"))
+            child_items = store.get_all(target_col)
+            matching_children = []
+
+            for child in child_items:
+                if not isinstance(child, dict):
+                    continue
+                for fk in candidate_fks:
+                    if fk in child and str(child[fk]) == parent_id_str:
+                        matching_children.append(copy.deepcopy(child))
+                        break
+
+            result[target] = matching_children
+
+    # 2. Expand parent collections (e.g. GET /comments?_expand=post)
+    if expand:
+        expand_targets = [e.strip() for e in expand.split(",") if e.strip()]
+        for target in expand_targets:
+            target_col = None
+            for col in known_cols:
+                if col.lower() == target.lower():
+                    target_col = col
+                    break
+            if not target_col:
+                plural = _pluralize(target)
+                for col in known_cols:
+                    if col.lower() == plural.lower():
+                        target_col = col
+                        break
+
+            if not target_col:
+                result[target] = None
+                continue
+
+            target_singular = _singularize(target)
+            candidate_fks = [
+                f"{target_singular}Id",
+                f"{target_singular}_id",
+                target_singular,
+                f"{target_col}Id",
+                f"{target_col}_id",
+                f"{_singularize(target_col)}Id",
+                f"{_singularize(target_col)}_id",
+            ]
+
+            parent_obj = None
+            for fk in candidate_fks:
+                if fk in result and result[fk] is not None:
+                    parent_id_str = str(result[fk])
+                    parent_candidate = store.get_by_id(target_col, parent_id_str)
+                    if parent_candidate is not None:
+                        parent_obj = copy.deepcopy(parent_candidate)
+                        break
+
+            result[target] = parent_obj
+
+    return result
+
+
+def resolve_relations(
+    items: list[dict[str, Any]],
+    current_collection: str,
+    store: DataStore,
+    embed: str | None = None,
+    expand: str | None = None,
+) -> list[dict[str, Any]]:
+    """Resolves _embed and _expand foreign key relationships for a list of items."""
+    if not embed and not expand:
+        return items
+    return [
+        resolve_relations_for_item(
+            item=item,
+            current_collection=current_collection,
+            store=store,
+            embed=embed,
+            expand=expand,
+        )
+        for item in items
+    ]
 
 
 def _find_foreign_key_relations(store: DataStore) -> list[dict[str, str]]:
@@ -36,11 +192,13 @@ def _find_foreign_key_relations(store: DataStore) -> list[dict[str, str]]:
                 candidates = [prefix + "s", prefix + "es", prefix]
                 for parent in collections:
                     if parent.lower() in candidates and parent != child:
-                        relations.append({
-                            "parent": parent,
-                            "child": child,
-                            "fk": key,
-                        })
+                        relations.append(
+                            {
+                                "parent": parent,
+                                "child": child,
+                                "fk": key,
+                            }
+                        )
                         break
 
     return relations
@@ -66,16 +224,35 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 if result.link_header:
                     response.headers["Link"] = result.link_header
 
-                return result.items
+                processed_items = resolve_relations(
+                    items=result.items,
+                    current_collection=collection,
+                    store=store,
+                    embed=query_params.get("_embed"),
+                    expand=query_params.get("_expand"),
+                )
+
+                return processed_items
 
             return get_all
 
         # Closure generator for GET /{collection}/{id}
         def make_get_by_id(collection: str):
-            async def get_by_id(id: str):
+            async def get_by_id(id: str, request: Request):
                 item = store.get_by_id(collection, id)
                 if item is None:
-                    raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                    raise HTTPException(
+                        status_code=404, detail=f"Item with id '{id}' not found in '{collection}'"
+                    )
+                query_params = dict(request.query_params)
+                if "_embed" in query_params or "_expand" in query_params:
+                    item = resolve_relations_for_item(
+                        item=item,
+                        current_collection=collection,
+                        store=store,
+                        embed=query_params.get("_embed"),
+                        expand=query_params.get("_expand"),
+                    )
                 return item
 
             return get_by_id
@@ -86,7 +263,9 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     payload = await request.json()
                     if not isinstance(payload, dict):
-                        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                        raise HTTPException(
+                            status_code=400, detail="Request body must be a JSON object"
+                        )
                     new_item = store.create(collection, payload)
                     if broadcaster is not None:
                         await broadcaster.publish(
@@ -108,10 +287,15 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     payload = await request.json()
                     if not isinstance(payload, dict):
-                        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                        raise HTTPException(
+                            status_code=400, detail="Request body must be a JSON object"
+                        )
                     updated = store.update(collection, id, payload, partial=False)
                     if updated is None:
-                        raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"Item with id '{id}' not found in '{collection}'",
+                        )
                     if broadcaster is not None:
                         await broadcaster.publish(
                             event="update",
@@ -130,10 +314,15 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     payload = await request.json()
                     if not isinstance(payload, dict):
-                        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                        raise HTTPException(
+                            status_code=400, detail="Request body must be a JSON object"
+                        )
                     updated = store.update(collection, id, payload, partial=True)
                     if updated is None:
-                        raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"Item with id '{id}' not found in '{collection}'",
+                        )
                     if broadcaster is not None:
                         await broadcaster.publish(
                             event="patch",
@@ -152,7 +341,10 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     deleted = store.delete(collection, id)
                     if deleted is None:
-                        raise HTTPException(status_code=404, detail=f"Item with id '{id}' not found in '{collection}'")
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"Item with id '{id}' not found in '{collection}'",
+                        )
                     if broadcaster is not None:
                         await broadcaster.publish(
                             event="delete",
@@ -227,7 +419,9 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     payload = await request.json()
                     if not isinstance(payload, dict):
-                        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                        raise HTTPException(
+                            status_code=400, detail="Request body must be a JSON object"
+                        )
                     val = store.update_singleton(key, payload, partial=True)
                     if broadcaster is not None:
                         await broadcaster.publish(
@@ -246,7 +440,9 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 try:
                     payload = await request.json()
                     if not isinstance(payload, dict):
-                        raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                        raise HTTPException(
+                            status_code=400, detail="Request body must be a JSON object"
+                        )
                     val = store.update_singleton(key, payload, partial=False)
                     if broadcaster is not None:
                         await broadcaster.publish(
@@ -294,14 +490,18 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
             async def get_nested(id: str, request: Request, response: Response):
                 parent_item = store.get_by_id(parent_col, id)
                 if parent_item is None:
-                    raise HTTPException(status_code=404, detail=f"Parent item with id '{id}' not found in '{parent_col}'")
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Parent item with id '{id}' not found in '{parent_col}'",
+                    )
 
                 # Filter child items by foreign key matching parent id
                 all_child_items = store.get_all(child_col)
                 target_fk_str = str(id)
 
                 matched = [
-                    item for item in all_child_items
+                    item
+                    for item in all_child_items
                     if isinstance(item, dict) and str(item.get(foreign_key)) == target_fk_str
                 ]
 
@@ -314,7 +514,15 @@ def create_mock_router(store: DataStore, broadcaster: EventBroadcaster | None = 
                 if result.link_header:
                     response.headers["Link"] = result.link_header
 
-                return result.items
+                processed_items = resolve_relations(
+                    items=result.items,
+                    current_collection=child_col,
+                    store=store,
+                    embed=query_params.get("_embed"),
+                    expand=query_params.get("_expand"),
+                )
+
+                return processed_items
 
             return get_nested
 
